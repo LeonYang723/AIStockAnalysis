@@ -51,6 +51,13 @@ const overviewInstitutionalEl = document.getElementById("overview-institutional"
 const overviewNextDayEl = document.getElementById("overview-next-day");
 const overviewNewsEl = document.getElementById("overview-news");
 const overviewAnomalyBannerEl = document.getElementById("overview-anomaly-banner");
+const staleWarningEl = document.getElementById("stale-warning");
+const compareCountEl = document.getElementById("compare-count");
+const compareTableBodyEl = document.getElementById("compare-table-body");
+
+const STALE_WARNING_DAYS = 4; // 資料超過幾天沒更新就跳警示(平日排程+跨週末的合理緩衝)
+let manifestStockIds = [];
+let compareDataLoaded = false;
 
 let manifestStockNames = {};
 let currentPage = "price";
@@ -178,6 +185,10 @@ function setActivePage(page) {
   });
   // 分頁切回可見狀態的當下,容器才會有正確的寬高,所以在下一個畫面更新時機再重繪圖表
   requestAnimationFrame(() => resizeChartsForPage(page));
+
+  if (page === "compare") {
+    loadCompareTable();
+  }
 }
 
 function syncTimeScales(source, target) {
@@ -465,6 +476,109 @@ function renderOverview(data) {
   });
 }
 
+function renderStaleWarning(updatedAtStr) {
+  if (!updatedAtStr) {
+    staleWarningEl.style.display = "none";
+    return;
+  }
+  const updated = new Date(updatedAtStr);
+  const daysSince = (Date.now() - updated.getTime()) / (1000 * 60 * 60 * 24);
+
+  if (daysSince > STALE_WARNING_DAYS) {
+    staleWarningEl.style.display = "";
+    staleWarningEl.textContent =
+      `⚠ 資料已經 ${Math.floor(daysSince)} 天沒有更新了(最後更新: ${updated.toLocaleString("zh-TW")}),` +
+      `可能是排程沒有正常執行,建議去 GitHub Actions 檢查一下。`;
+  } else {
+    staleWarningEl.style.display = "none";
+  }
+}
+
+function formatCompareValue(value, digits, suffix = "") {
+  return value != null ? `${value.toFixed(digits)}${suffix}` : "-";
+}
+
+function renderCompareTable(rows) {
+  compareTableBodyEl.innerHTML = "";
+  compareCountEl.textContent = `共 ${rows.length} 檔`;
+
+  if (rows.length === 0) {
+    compareTableBodyEl.innerHTML = `<tr><td colspan="10">目前沒有可比較的股票資料</td></tr>`;
+    return;
+  }
+
+  rows.forEach((data) => {
+    const overview = data.overview || {};
+    const anomalies = data.institutional?.anomalies || {};
+    const hasAnomaly = Object.keys(anomalies).length > 0;
+
+    const changeCls = overview.change > 0 ? "txt-up" : overview.change < 0 ? "txt-down" : "";
+    const changeSign = overview.change > 0 ? "+" : "";
+    const changeText =
+      overview.change_pct != null ? `<span class="${changeCls}">${changeSign}${overview.change_pct}%</span>` : "-";
+
+    const nextDayText =
+      overview.next_day_up_pct != null
+        ? `<span class="txt-up">${overview.next_day_up_pct}%</span> / <span class="txt-down">${overview.next_day_down_pct}%</span>`
+        : "-";
+
+    const newsTotal = (overview.news_positive || 0) + (overview.news_negative || 0) + (overview.news_neutral || 0);
+    const newsText =
+      newsTotal > 0
+        ? `<span class="txt-up">${overview.news_positive}</span>/<span class="txt-neutral">${overview.news_neutral}</span>/<span class="txt-down">${overview.news_negative}</span>`
+        : "-";
+
+    const anomalyText = hasAnomaly
+      ? Object.entries(anomalies)
+          .map(([key, info]) => `⚠${ANOMALY_LABEL_MAP[key] || key}${info.streak}天${info.direction === "buy" ? "買超" : "賣超"}`)
+          .join(" ")
+      : "-";
+
+    const tr = document.createElement("tr");
+    if (hasAnomaly) tr.classList.add("has-anomaly");
+    tr.innerHTML = `
+      <td>${data.stock_id}${data.stock_name ? " " + data.stock_name : ""}</td>
+      <td>${formatCompareValue(overview.close, 2)}</td>
+      <td>${changeText}</td>
+      <td>${formatCompareValue(overview.per, 1)}</td>
+      <td>${formatCompareValue(overview.pbr, 1)}</td>
+      <td>${overview.rsi14 != null ? overview.rsi14 : "-"}</td>
+      <td>${overview.ma_state || "-"}</td>
+      <td>${nextDayText}</td>
+      <td>${newsText}</td>
+      <td>${anomalyText}</td>
+    `;
+    tr.addEventListener("click", () => {
+      selectEl.value = data.stock_id;
+      loadStock(data.stock_id);
+      pageSelectEl.value = "overview";
+      setActivePage("overview");
+    });
+    compareTableBodyEl.appendChild(tr);
+  });
+}
+
+async function loadCompareTable(force = false) {
+  if (compareDataLoaded && !force) return;
+
+  compareTableBodyEl.innerHTML = `<tr><td colspan="10">載入中...</td></tr>`;
+  const rows = [];
+
+  for (const id of manifestStockIds) {
+    try {
+      const res = await fetch(`data/${id}.json?t=${Date.now()}`);
+      if (!res.ok) continue;
+      const data = await res.json();
+      rows.push(data);
+    } catch (e) {
+      // 單一股票抓取失敗就跳過,不影響其他股票顯示
+    }
+  }
+
+  renderCompareTable(rows);
+  compareDataLoaded = true;
+}
+
 async function loadStock(stockId) {
   const res = await fetch(`data/${stockId}.json?t=${Date.now()}`);
   if (!res.ok) {
@@ -511,12 +625,14 @@ async function loadStock(stockId) {
 
   const updated = new Date(data.updated_at);
   updatedAtEl.textContent = `資料更新: ${updated.toLocaleString("zh-TW")}`;
+  renderStaleWarning(data.updated_at);
 }
 
 async function loadManifestAndInit() {
   const res = await fetch(`data/manifest.json?t=${Date.now()}`);
   const manifest = await res.json();
   manifestStockNames = manifest.stock_names || {};
+  manifestStockIds = manifest.stocks || [];
 
   selectEl.innerHTML = "";
   manifest.stocks.forEach((id) => {
