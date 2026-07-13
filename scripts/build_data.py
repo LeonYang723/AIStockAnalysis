@@ -20,15 +20,16 @@ REPO_ROOT = os.path.dirname(SCRIPT_DIR)
 
 from config import (
     STOCK_LIST, LOOKBACK_DAYS, RSI_PERIODS, MA_WINDOWS, FUNDAMENTALS_QUARTERS,
-    ANALYSIS_LOOKBACK_YEARS, OUTPUT_DIR,
+    ANALYSIS_LOOKBACK_YEARS, NEWS_LOOKBACK_DAYS, NEWS_MAX_ARTICLES, OUTPUT_DIR,
 )
 from data_fetcher import (
     get_stock_price, get_institutional_investors, get_margin_trading,
     get_valuation_ratios, get_financial_statements, get_balance_sheet, get_cash_flow,
-    get_stock_names,
+    get_stock_names, get_stock_news,
 )
 from indicators import add_moving_averages, add_rsi_columns
 from analysis import generate_trend_narrative, compute_next_day_probability
+from news_analysis import summarize_news
 
 OUTPUT_DIR_ABS = os.path.join(REPO_ROOT, OUTPUT_DIR)
 
@@ -184,6 +185,16 @@ def build_one(stock_id: str, token: str = None, stock_name: str = None) -> dict:
         print(f"  基本面季報資料抓取失敗({stock_id}): {e}")
         fundamentals = {"quarters": []}
 
+    # ---------- 財經新聞(關鍵字利多/利空比對) ----------
+    try:
+        news_end_date = end_date
+        news_start_date = (datetime.today() - timedelta(days=NEWS_LOOKBACK_DAYS)).strftime("%Y-%m-%d")
+        news_df = get_stock_news(stock_id, news_start_date, news_end_date, token=token)
+        news = summarize_news(news_df, max_articles=NEWS_MAX_ARTICLES)
+    except Exception as e:
+        print(f"  財經新聞資料抓取失敗({stock_id}): {e}")
+        news = {"total": 0, "positive_count": 0, "negative_count": 0, "neutral_count": 0, "articles": []}
+
     return {
         "stock_id": stock_id,
         "stock_name": stock_name,
@@ -197,6 +208,7 @@ def build_one(stock_id: str, token: str = None, stock_name: str = None) -> dict:
         "valuation": valuation,
         "fundamentals": fundamentals,
         "analysis": analysis,
+        "news": news,
     }
 
 

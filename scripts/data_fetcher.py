@@ -225,6 +225,19 @@ def get_cash_flow(stock_id: str, start_date: str, end_date: str, token: str = No
     )
     return op_cf.sort_values("date").reset_index(drop=True)
 
+
+def get_stock_news(stock_id: str, start_date: str, end_date: str, token: str = None) -> pd.DataFrame:
+    """
+    取得個股相關新聞。
+    回傳欄位: date, title, source, link,依日期由新到舊排序。
+    """
+    df = _fetch("TaiwanStockNews", stock_id, start_date, end_date, token)
+    df["date"] = pd.to_datetime(df["date"])
+    df = df.sort_values("date", ascending=False).reset_index(drop=True)
+    # 同一則新聞有時會重複出現,依標題+連結去重
+    df = df.drop_duplicates(subset=["title", "link"], keep="first")
+    return df[["date", "title", "source", "link"]]
+
 # 註: 曾嘗試加入「主力買賣(券商分點)」功能,對應 FinMind 的
 # TaiwanStockTradingDailyReport 資料集,但該資料集是付費 Sponsor 方案專屬,
 # 免費/一般註冊帳號的 token 都無法存取(會回傳 400)。

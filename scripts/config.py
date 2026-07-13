@@ -26,5 +26,9 @@ ANALYSIS_LOOKBACK_YEARS = 5
 # 同一種技術狀態的歷史樣本數至少要達到這個數字,統計才算可信,不夠會自動退回較寬鬆的分類
 ANALYSIS_MIN_SAMPLE = 20
 
+# 財經新聞要抓近幾天,以及最多保留幾篇(避免JSON檔案太大)
+NEWS_LOOKBACK_DAYS = 14
+NEWS_MAX_ARTICLES = 30
+
 # 輸出JSON存放位置(GitHub Pages 會發布 docs/ 目錄)
 OUTPUT_DIR = "docs/data"
