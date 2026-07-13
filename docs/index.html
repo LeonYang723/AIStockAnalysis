@@ -31,6 +31,35 @@
 
     <section class="chart-section">
       <div class="chart-header">
+        <span>近期走向分析</span>
+      </div>
+      <p id="trend-narrative" class="trend-narrative"></p>
+
+      <div class="prob-block">
+        <div class="prob-header">
+          <span>隔日漲跌機率(歷史統計)</span>
+          <span id="prob-state-label" class="prob-state-label"></span>
+        </div>
+        <div class="prob-bar-wrap">
+          <div class="prob-bar">
+            <div id="prob-bar-up" class="prob-bar-up"></div>
+            <div id="prob-bar-down" class="prob-bar-down"></div>
+          </div>
+        </div>
+        <div class="prob-legend">
+          <span class="prob-up-text">上漲 <b id="prob-up-pct">-</b>%</span>
+          <span class="prob-down-text">下跌 <b id="prob-down-pct">-</b>%</span>
+          <span id="prob-sample-size" class="prob-sample"></span>
+        </div>
+        <p class="prob-disclaimer">
+          此機率是統計「過去歷史上,技術指標處於相同狀態時隔日實際漲跌的比例」,
+          純粹是歷史迴顧統計,不是機器學習預測,也不保證未來會重演,僅供參考,不構成投資建議。
+        </p>
+      </div>
+    </section>
+
+    <section class="chart-section">
+      <div class="chart-header">
         <span>RSI</span>
       </div>
       <div id="rsi-chart" class="chart-box rsi-chart"></div>

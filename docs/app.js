@@ -18,6 +18,13 @@ const maLegendEl = document.getElementById("ma-legend");
 const fundHeadEl = document.getElementById("fund-table-head");
 const fundBodyEl = document.getElementById("fund-table-body");
 const stockLabelEl = document.getElementById("stock-label");
+const trendNarrativeEl = document.getElementById("trend-narrative");
+const probStateLabelEl = document.getElementById("prob-state-label");
+const probBarUpEl = document.getElementById("prob-bar-up");
+const probBarDownEl = document.getElementById("prob-bar-down");
+const probUpPctEl = document.getElementById("prob-up-pct");
+const probDownPctEl = document.getElementById("prob-down-pct");
+const probSampleSizeEl = document.getElementById("prob-sample-size");
 
 let manifestStockNames = {};
 
@@ -209,6 +216,29 @@ function renderFundamentalsTable(fundamentals) {
   });
 }
 
+function renderAnalysis(analysis) {
+  const narrative = analysis?.narrative || "目前沒有足夠資料可以產生分析。";
+  trendNarrativeEl.textContent = narrative;
+
+  const nextDay = analysis?.next_day || {};
+  if (nextDay.up_pct === null || nextDay.up_pct === undefined) {
+    probStateLabelEl.textContent = nextDay.state_label || "資料不足";
+    probBarUpEl.style.width = "50%";
+    probBarDownEl.style.width = "50%";
+    probUpPctEl.textContent = "-";
+    probDownPctEl.textContent = "-";
+    probSampleSizeEl.textContent = "";
+    return;
+  }
+
+  probStateLabelEl.textContent = nextDay.state_label || "";
+  probBarUpEl.style.width = `${nextDay.up_pct}%`;
+  probBarDownEl.style.width = `${nextDay.down_pct}%`;
+  probUpPctEl.textContent = nextDay.up_pct;
+  probDownPctEl.textContent = nextDay.down_pct;
+  probSampleSizeEl.textContent = `樣本數: ${nextDay.sample_size} 天`;
+}
+
 async function loadStock(stockId) {
   const res = await fetch(`data/${stockId}.json?t=${Date.now()}`);
   if (!res.ok) {
@@ -241,6 +271,7 @@ async function loadStock(stockId) {
   pbrSeries.setData(valuation.PBR || []);
 
   renderFundamentalsTable(data.fundamentals);
+  renderAnalysis(data.analysis);
 
   priceChart.timeScale().fitContent();
   rsiChart.timeScale().fitContent();
