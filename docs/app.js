@@ -17,6 +17,9 @@ const updatedAtEl = document.getElementById("updated-at");
 const maLegendEl = document.getElementById("ma-legend");
 const fundHeadEl = document.getElementById("fund-table-head");
 const fundBodyEl = document.getElementById("fund-table-body");
+const stockLabelEl = document.getElementById("stock-label");
+
+let manifestStockNames = {};
 
 let priceChart, rsiChart, instChart, marginChart, valuationChart;
 let candleSeries, rsiSeries14, rsiSeries6;
@@ -214,6 +217,11 @@ async function loadStock(stockId) {
   }
   const data = await res.json();
 
+  const stockName = data.stock_name || manifestStockNames[stockId] || "";
+  stockLabelEl.innerHTML = stockName
+    ? `${stockName}<span class="stock-id">${stockId}</span>`
+    : `<span class="stock-id">${stockId}</span>`;
+
   candleSeries.setData(data.price);
   renderMaSeries(data.ma || {});
   rsiSeries14.setData(data.rsi?.RSI14 || []);
@@ -247,12 +255,14 @@ async function loadStock(stockId) {
 async function loadManifestAndInit() {
   const res = await fetch(`data/manifest.json?t=${Date.now()}`);
   const manifest = await res.json();
+  manifestStockNames = manifest.stock_names || {};
 
   selectEl.innerHTML = "";
   manifest.stocks.forEach((id) => {
     const opt = document.createElement("option");
     opt.value = id;
-    opt.textContent = id;
+    const name = manifestStockNames[id];
+    opt.textContent = name ? `${id} ${name}` : id;
     selectEl.appendChild(opt);
   });
 

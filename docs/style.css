@@ -111,6 +111,29 @@ main {
   width: 100%;
 }
 
+.price-chart-wrap {
+  position: relative;
+}
+
+.stock-label {
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  z-index: 5;
+  pointer-events: none;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.stock-label .stock-id {
+  font-weight: 400;
+  color: var(--text-dim);
+  margin-left: 6px;
+  font-size: 13px;
+}
+
 .price-chart { height: 420px; }
 .rsi-chart { height: 160px; }
 .inst-chart { height: 200px; }
