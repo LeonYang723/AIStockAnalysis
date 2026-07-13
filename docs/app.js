@@ -27,6 +27,14 @@ const probBarDownEl = document.getElementById("prob-bar-down");
 const probUpPctEl = document.getElementById("prob-up-pct");
 const probDownPctEl = document.getElementById("prob-down-pct");
 const probSampleSizeEl = document.getElementById("prob-sample-size");
+const newsTotalEl = document.getElementById("news-total");
+const newsBarPosEl = document.getElementById("news-bar-pos");
+const newsBarNeuEl = document.getElementById("news-bar-neu");
+const newsBarNegEl = document.getElementById("news-bar-neg");
+const newsPosCountEl = document.getElementById("news-pos-count");
+const newsNeuCountEl = document.getElementById("news-neu-count");
+const newsNegCountEl = document.getElementById("news-neg-count");
+const newsListEl = document.getElementById("news-list");
 
 let manifestStockNames = {};
 let currentPage = "price";
@@ -259,6 +267,64 @@ function renderAnalysis(analysis) {
   probSampleSizeEl.textContent = `樣本數: ${nextDay.sample_size} 天`;
 }
 
+const SENTIMENT_TAG_CLASS = { "利多": "pos", "利空": "neg", "中性": "neu" };
+
+function renderNews(news) {
+  const total = news?.total || 0;
+  const pos = news?.positive_count || 0;
+  const neu = news?.neutral_count || 0;
+  const neg = news?.negative_count || 0;
+
+  newsTotalEl.textContent = `近 ${total} 則相關新聞`;
+
+  if (total === 0) {
+    newsBarPosEl.style.width = "0%";
+    newsBarNeuEl.style.width = "100%";
+    newsBarNegEl.style.width = "0%";
+  } else {
+    newsBarPosEl.style.width = `${(pos / total) * 100}%`;
+    newsBarNeuEl.style.width = `${(neu / total) * 100}%`;
+    newsBarNegEl.style.width = `${(neg / total) * 100}%`;
+  }
+  newsPosCountEl.textContent = pos;
+  newsNeuCountEl.textContent = neu;
+  newsNegCountEl.textContent = neg;
+
+  newsListEl.innerHTML = "";
+  const articles = news?.articles || [];
+  if (articles.length === 0) {
+    const li = document.createElement("li");
+    li.textContent = "目前沒有相關新聞資料。";
+    newsListEl.appendChild(li);
+    return;
+  }
+
+  articles.forEach((a) => {
+    const li = document.createElement("li");
+    const tagClass = SENTIMENT_TAG_CLASS[a.sentiment] || "neu";
+
+    const tag = document.createElement("span");
+    tag.className = `news-tag ${tagClass}`;
+    tag.textContent = a.sentiment;
+
+    const titleLink = document.createElement("a");
+    titleLink.className = "news-item-title";
+    titleLink.href = a.link || "#";
+    titleLink.target = "_blank";
+    titleLink.rel = "noopener noreferrer";
+    titleLink.textContent = a.title;
+
+    const meta = document.createElement("span");
+    meta.className = "news-item-meta";
+    meta.textContent = `${a.source || ""} · ${a.date || ""}`;
+
+    li.appendChild(tag);
+    li.appendChild(titleLink);
+    li.appendChild(meta);
+    newsListEl.appendChild(li);
+  });
+}
+
 async function loadStock(stockId) {
   const res = await fetch(`data/${stockId}.json?t=${Date.now()}`);
   if (!res.ok) {
@@ -292,6 +358,7 @@ async function loadStock(stockId) {
 
   renderFundamentalsTable(data.fundamentals);
   renderAnalysis(data.analysis);
+  renderNews(data.news);
 
   priceChart.timeScale().fitContent();
   rsiChart.timeScale().fitContent();

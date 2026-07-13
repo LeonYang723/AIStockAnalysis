@@ -18,6 +18,7 @@
         <option value="price">K線 / 走向分析</option>
         <option value="indicators">技術籌碼指標</option>
         <option value="fundamentals">基本面統計</option>
+        <option value="news">財經新聞</option>
       </select>
       <span id="updated-at" class="updated-at"></span>
     </div>
@@ -124,6 +125,38 @@
           </table>
         </div>
         <p class="fund-note">EPS / 毛利率 / 營益率 / ROE / ROA 為單季數字(非年化);營收與營業現金流單位為億元</p>
+      </section>
+    </div>
+
+    <!-- ===== 頁面4: 財經新聞(關鍵字利多/利空比對) ===== -->
+    <div class="page-group" data-page="news">
+      <section class="chart-section">
+        <div class="chart-header">
+          <span>新聞整體氣氛(關鍵字比對)</span>
+          <span id="news-total" class="news-total"></span>
+        </div>
+        <div class="news-summary-bar">
+          <div id="news-bar-pos" class="news-bar-pos"></div>
+          <div id="news-bar-neu" class="news-bar-neu"></div>
+          <div id="news-bar-neg" class="news-bar-neg"></div>
+        </div>
+        <div class="news-summary-legend">
+          <span class="news-pos-text">利多 <b id="news-pos-count">-</b> 則</span>
+          <span class="news-neu-text">中性 <b id="news-neu-count">-</b> 則</span>
+          <span class="news-neg-text">利空 <b id="news-neg-count">-</b> 則</span>
+        </div>
+        <p class="news-disclaimer">
+          這不是AI理解新聞內容後的摘要,只是單純統計新聞標題裡出現了幾個「利多/利空關鍵字」,
+          屬於粗略的字面比對,無法辨識反諷、疑問句等語意,也可能誤判同時提到成長與衰退的新聞。
+          僅供參考,不構成投資建議。
+        </p>
+      </section>
+
+      <section class="chart-section">
+        <div class="chart-header">
+          <span>相關新聞列表</span>
+        </div>
+        <ul id="news-list" class="news-list"></ul>
       </section>
     </div>
   </main>
