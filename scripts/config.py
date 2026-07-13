@@ -17,5 +17,8 @@ RSI_PERIODS = [6, 14]
 # 均線參數
 MA_WINDOWS = [5, 10, 20, 60]
 
+# 基本面資料(EPS/ROE等)要顯示近幾季
+FUNDAMENTALS_QUARTERS = 8
+
 # 輸出JSON存放位置(GitHub Pages 會發布 docs/ 目錄)
 OUTPUT_DIR = "docs/data"

@@ -90,6 +90,102 @@ def get_margin_trading(stock_id: str, start_date: str, end_date: str, token: str
     cols = ["date", "margin_balance", "margin_buy", "margin_sell", "short_balance", "short_buy", "short_sell"]
     return df[cols]
 
+
+def get_valuation_ratios(stock_id: str, start_date: str, end_date: str, token: str = None) -> pd.DataFrame:
+    """
+    取得本益比(P/E)、淨值比(P/B)、殖利率。
+    FinMind 這個資料集已經幫忙算好了,不用自己拿股價/EPS重算。
+    回傳欄位: date, PER, PBR, dividend_yield
+    """
+    df = _fetch("TaiwanStockPER", stock_id, start_date, end_date, token)
+    df["date"] = pd.to_datetime(df["date"])
+    df = df.sort_values("date").reset_index(drop=True)
+    return df[["date", "PER", "PBR", "dividend_yield"]]
+
+
+def _pick_series(df: pd.DataFrame, candidates: list, label: str) -> pd.DataFrame:
+    """
+    財報類資料集是長格式(每個會計科目一列,用 type 欄位區分),
+    但 FinMind 官方文件沒有列出每個資料集完整的 type 命名,
+    這裡依序嘗試候選關鍵字:先找完全相符,找不到再用模糊比對(contains)。
+    如果都找不到,把目前資料裡實際有哪些 type 印出來,方便除錯調整候選清單。
+    """
+    for keyword in candidates:
+        exact = df[df["type"] == keyword]
+        if not exact.empty:
+            return exact[["date", "value"]].rename(columns={"value": label})
+
+    for keyword in candidates:
+        matched = df[df["type"].str.contains(keyword, case=False, na=False)]
+        if not matched.empty:
+            picked_type = matched["type"].iloc[0]
+            sub = df[df["type"] == picked_type][["date", "value"]]
+            return sub.rename(columns={"value": label})
+
+    available = sorted(df["type"].unique().tolist())
+    raise ValueError(f"找不到符合 {candidates} 的科目(欄位:{label})。實際可用的type: {available}")
+
+
+def get_financial_statements(stock_id: str, start_date: str, end_date: str, token: str = None) -> pd.DataFrame:
+    """
+    取得季報損益表相關數字: EPS、營收、毛利、營業利益、稅後淨利,
+    並計算毛利率、營益率。
+
+    回傳欄位: date, eps, revenue, gross_profit, operating_income, net_income,
+              gross_margin(%), operating_margin(%)
+    """
+    df = _fetch("TaiwanStockFinancialStatements", stock_id, start_date, end_date, token)
+    df["date"] = pd.to_datetime(df["date"])
+
+    eps = _pick_series(df, ["EPS"], "eps")
+    revenue = _pick_series(df, ["Revenue"], "revenue")
+    gross_profit = _pick_series(df, ["GrossProfit", "GrossProfitLoss"], "gross_profit")
+    operating_income = _pick_series(df, ["OperatingIncome"], "operating_income")
+    net_income = _pick_series(df, ["IncomeAfterTaxes", "ProfitLoss"], "net_income")
+
+    merged = eps.merge(revenue, on="date", how="outer") \
+                .merge(gross_profit, on="date", how="outer") \
+                .merge(operating_income, on="date", how="outer") \
+                .merge(net_income, on="date", how="outer") \
+                .sort_values("date").reset_index(drop=True)
+
+    merged["gross_margin"] = merged["gross_profit"] / merged["revenue"] * 100
+    merged["operating_margin"] = merged["operating_income"] / merged["revenue"] * 100
+    return merged
+
+
+def get_balance_sheet(stock_id: str, start_date: str, end_date: str, token: str = None) -> pd.DataFrame:
+    """
+    取得資產負債表相關數字: 總資產、總負債、股東權益,並計算負債比。
+    回傳欄位: date, total_assets, total_liabilities, equity, debt_ratio(%)
+    """
+    df = _fetch("TaiwanStockBalanceSheet", stock_id, start_date, end_date, token)
+    df["date"] = pd.to_datetime(df["date"])
+
+    total_assets = _pick_series(df, ["TotalAssets"], "total_assets")
+    total_liabilities = _pick_series(df, ["TotalLiabilities"], "total_liabilities")
+    equity = _pick_series(
+        df, ["EquityAttributableToOwnersOfParent", "TotalEquity", "Equity"], "equity"
+    )
+
+    merged = total_assets.merge(total_liabilities, on="date", how="outer") \
+                          .merge(equity, on="date", how="outer") \
+                          .sort_values("date").reset_index(drop=True)
+    merged["debt_ratio"] = merged["total_liabilities"] / merged["total_assets"] * 100
+    return merged
+
+
+def get_cash_flow(stock_id: str, start_date: str, end_date: str, token: str = None) -> pd.DataFrame:
+    """取得現金流量表的營業活動現金流。回傳欄位: date, operating_cash_flow"""
+    df = _fetch("TaiwanStockCashFlowsStatement", stock_id, start_date, end_date, token)
+    df["date"] = pd.to_datetime(df["date"])
+
+    op_cf = _pick_series(
+        df, ["CashFlowsFromOperatingActivities", "NetCashFlowsFromOperatingActivities"],
+        "operating_cash_flow",
+    )
+    return op_cf.sort_values("date").reset_index(drop=True)
+
 # 註: 曾嘗試加入「主力買賣(券商分點)」功能,對應 FinMind 的
 # TaiwanStockTradingDailyReport 資料集,但該資料集是付費 Sponsor 方案專屬,
 # 免費/一般註冊帳號的 token 都無法存取(會回傳 400)。

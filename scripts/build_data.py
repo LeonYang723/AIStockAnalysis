@@ -18,8 +18,11 @@ from datetime import datetime, timedelta
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(SCRIPT_DIR)
 
-from config import STOCK_LIST, LOOKBACK_DAYS, RSI_PERIODS, MA_WINDOWS, OUTPUT_DIR
-from data_fetcher import get_stock_price, get_institutional_investors, get_margin_trading
+from config import STOCK_LIST, LOOKBACK_DAYS, RSI_PERIODS, MA_WINDOWS, FUNDAMENTALS_QUARTERS, OUTPUT_DIR
+from data_fetcher import (
+    get_stock_price, get_institutional_investors, get_margin_trading,
+    get_valuation_ratios, get_financial_statements, get_balance_sheet, get_cash_flow,
+)
 from indicators import add_moving_averages, add_rsi_columns
 
 OUTPUT_DIR_ABS = os.path.join(REPO_ROOT, OUTPUT_DIR)
@@ -109,6 +112,52 @@ def build_one(stock_id: str, token: str = None) -> dict:
         margin = {k: [] for k in
                   ["margin_balance", "margin_buy", "margin_sell", "short_balance", "short_buy", "short_sell"]}
 
+    # ---------- 本益比 / 淨值比 / 殖利率(每日資料) ----------
+    try:
+        val_df = get_valuation_ratios(stock_id, start_date, end_date, token=token)
+        val_df = val_df[val_df["date"] >= df["date"].min()].reset_index(drop=True)
+        valuation = _series_from_df(val_df, ["PER", "PBR", "dividend_yield"])
+    except Exception as e:
+        print(f"  本益比/淨值比資料抓取失敗({stock_id}): {e}")
+        valuation = {"PER": [], "PBR": [], "dividend_yield": []}
+
+    # ---------- 基本面季報(EPS/毛利率/營益率/ROE/ROA/負債比/現金流) ----------
+    try:
+        # 財報是季更新,抓近3年份確保有足夠的季數可以裁到 FUNDAMENTALS_QUARTERS 筆
+        fund_start_date = (datetime.today() - timedelta(days=3 * 365)).strftime("%Y-%m-%d")
+
+        fin_df = get_financial_statements(stock_id, fund_start_date, end_date, token=token)
+        bs_df = get_balance_sheet(stock_id, fund_start_date, end_date, token=token)
+        cf_df = get_cash_flow(stock_id, fund_start_date, end_date, token=token)
+
+        merged = fin_df.merge(bs_df, on="date", how="inner").merge(cf_df, on="date", how="left")
+        merged["roe"] = merged["net_income"] / merged["equity"] * 100
+        merged["roa"] = merged["net_income"] / merged["total_assets"] * 100
+
+        # 大數字換算成「億元」比較好讀
+        merged["revenue_yi"] = merged["revenue"] / 1e8
+        merged["operating_cash_flow_yi"] = merged["operating_cash_flow"] / 1e8
+
+        merged = merged.sort_values("date").tail(FUNDAMENTALS_QUARTERS).reset_index(drop=True)
+
+        quarters = []
+        for _, row in merged.iterrows():
+            quarters.append({
+                "date": row["date"].strftime("%Y-%m-%d"),
+                "eps": _clean(row.get("eps")),
+                "revenue_yi": _clean(row.get("revenue_yi")),
+                "gross_margin": _clean(row.get("gross_margin")),
+                "operating_margin": _clean(row.get("operating_margin")),
+                "roe": _clean(row.get("roe")),
+                "roa": _clean(row.get("roa")),
+                "debt_ratio": _clean(row.get("debt_ratio")),
+                "operating_cash_flow_yi": _clean(row.get("operating_cash_flow_yi")),
+            })
+        fundamentals = {"quarters": quarters}
+    except Exception as e:
+        print(f"  基本面季報資料抓取失敗({stock_id}): {e}")
+        fundamentals = {"quarters": []}
+
     return {
         "stock_id": stock_id,
         "updated_at": datetime.now().isoformat(),
@@ -118,6 +167,8 @@ def build_one(stock_id: str, token: str = None) -> dict:
         "rsi": rsi_series,
         "institutional": institutional,
         "margin": margin,
+        "valuation": valuation,
+        "fundamentals": fundamentals,
     }
 
 
