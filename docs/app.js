@@ -530,7 +530,11 @@ function renderCompareTable(rows) {
 
     const anomalyText = hasAnomaly
       ? Object.entries(anomalies)
-          .map(([key, info]) => `⚠${ANOMALY_LABEL_MAP[key] || key}${info.streak}天${info.direction === "buy" ? "買超" : "賣超"}`)
+          .map(([key, info]) => {
+            const cls = info.direction === "buy" ? "txt-up" : "txt-down";
+            const dirText = info.direction === "buy" ? "買超" : "賣超";
+            return `<span class="${cls}">⚠${ANOMALY_LABEL_MAP[key] || key}${info.streak}天${dirText}</span>`;
+          })
           .join(" ")
       : "-";
 
