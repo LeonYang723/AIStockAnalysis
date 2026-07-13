@@ -439,15 +439,18 @@ function renderOverview(data) {
     overviewInstitutionalEl.appendChild(div);
   });
 
-  overviewNextDayEl.textContent =
+  overviewNextDayEl.innerHTML =
     overview.next_day_up_pct != null
-      ? `上漲${overview.next_day_up_pct}% / 下跌${overview.next_day_down_pct}%`
+      ? `<span class="txt-up">上漲${overview.next_day_up_pct}%</span> / ` +
+        `<span class="txt-down">下跌${overview.next_day_down_pct}%</span>`
       : "資料不足";
 
   const newsTotal = (overview.news_positive || 0) + (overview.news_negative || 0) + (overview.news_neutral || 0);
-  overviewNewsEl.textContent =
+  overviewNewsEl.innerHTML =
     newsTotal > 0
-      ? `利多${overview.news_positive} / 中性${overview.news_neutral} / 利空${overview.news_negative}`
+      ? `<span class="txt-up">利多${overview.news_positive}</span> / ` +
+        `<span class="txt-neutral">中性${overview.news_neutral}</span> / ` +
+        `<span class="txt-down">利空${overview.news_negative}</span>`
       : "無相關新聞";
 
   // 把三大法人連續買賣超的異常也整理到總覽頁顯示
