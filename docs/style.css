@@ -399,6 +399,11 @@ main {
 .overview-inst-list span.up { color: #d6382e; }
 .overview-inst-list span.down { color: #1e9e5a; }
 
+/* 通用紅漲綠跌文字色,總覽頁的機率/新聞氣氛等地方共用 */
+.txt-up { color: #d6382e; }
+.txt-down { color: #1e9e5a; }
+.txt-neutral { color: var(--text-dim); }
+
 .overview-anomaly-banner {
   margin-top: 14px;
   display: flex;
