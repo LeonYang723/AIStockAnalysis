@@ -143,3 +143,41 @@ def compute_next_day_probability(df: pd.DataFrame) -> dict:
         "match_level": match_level,
         "state_label": state_label_map[match_level],
     }
+
+
+def compute_streak(values: list) -> dict:
+    """
+    計算「最近連續同方向」的天數,用來標記三大法人連續買超/賣超這類異常狀態。
+    values: 由舊到新排序的數字清單(例如某個法人每天的買賣超張數)。
+    回傳: {"streak": 連續天數, "direction": "buy"/"sell"/None}
+    0 視為中斷(不算買超也不算賣超)。
+    """
+    if not values:
+        return {"streak": 0, "direction": None}
+
+    last = values[-1]
+    if last == 0:
+        return {"streak": 0, "direction": None}
+
+    direction = "buy" if last > 0 else "sell"
+    streak = 0
+    for v in reversed(values):
+        if v == 0:
+            break
+        cur_direction = "buy" if v > 0 else "sell"
+        if cur_direction != direction:
+            break
+        streak += 1
+
+    return {"streak": streak, "direction": direction}
+
+
+def get_latest_state(df: pd.DataFrame) -> dict:
+    """取出最新一筆資料的RSI數值/狀態、均線狀態,給總覽頁快速顯示用"""
+    latest = df.iloc[-1]
+    rsi14 = latest.get("RSI14")
+    return {
+        "rsi14": None if rsi14 is None or pd.isna(rsi14) else round(float(rsi14), 1),
+        "rsi_state": classify_rsi(rsi14),
+        "ma_state": classify_ma_trend(latest["close"], latest.get("MA5"), latest.get("MA20"), latest.get("MA60")),
+    }

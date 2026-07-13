@@ -20,7 +20,8 @@ REPO_ROOT = os.path.dirname(SCRIPT_DIR)
 
 from config import (
     STOCK_LIST, LOOKBACK_DAYS, RSI_PERIODS, MA_WINDOWS, FUNDAMENTALS_QUARTERS,
-    ANALYSIS_LOOKBACK_YEARS, NEWS_LOOKBACK_DAYS, NEWS_MAX_ARTICLES, OUTPUT_DIR,
+    ANALYSIS_LOOKBACK_YEARS, NEWS_LOOKBACK_DAYS, NEWS_MAX_ARTICLES,
+    ANOMALY_STREAK_THRESHOLD, OUTPUT_DIR,
 )
 from data_fetcher import (
     get_stock_price, get_institutional_investors, get_margin_trading,
@@ -28,7 +29,7 @@ from data_fetcher import (
     get_stock_names, get_stock_news,
 )
 from indicators import add_moving_averages, add_rsi_columns
-from analysis import generate_trend_narrative, compute_next_day_probability
+from analysis import generate_trend_narrative, compute_next_day_probability, compute_streak, get_latest_state
 from news_analysis import summarize_news
 from prediction_tracker import load_log, save_log, resolve_pending, add_new_prediction, compute_track_record
 
@@ -140,9 +141,17 @@ def build_one(stock_id: str, token: str = None, stock_name: str = None) -> dict:
         for col in ["foreign_net", "trust_net", "dealer_net", "total_net"]:
             inst_df[col] = (inst_df[col] / 1000).round().astype(int)
         institutional = _series_from_df(inst_df, ["foreign_net", "trust_net", "dealer_net", "total_net"])
+
+        # 連續買超/賣超天數異常標記(只有連續天數達到門檻才會列入,前端才會顯示徽章)
+        anomalies = {}
+        for key, label in [("foreign_net", "foreign"), ("trust_net", "trust"), ("dealer_net", "dealer")]:
+            streak_info = compute_streak(inst_df[key].tolist())
+            if streak_info["streak"] >= ANOMALY_STREAK_THRESHOLD:
+                anomalies[label] = streak_info
+        institutional["anomalies"] = anomalies
     except Exception as e:
         print(f"  三大法人資料抓取失敗({stock_id}): {e}")
-        institutional = {"foreign_net": [], "trust_net": [], "dealer_net": [], "total_net": []}
+        institutional = {"foreign_net": [], "trust_net": [], "dealer_net": [], "total_net": [], "anomalies": {}}
 
     # ---------- 融資融券 ----------
     try:
@@ -213,6 +222,40 @@ def build_one(stock_id: str, token: str = None, stock_name: str = None) -> dict:
         print(f"  財經新聞資料抓取失敗({stock_id}): {e}")
         news = {"total": 0, "positive_count": 0, "negative_count": 0, "neutral_count": 0, "articles": []}
 
+    # ---------- 總覽(彙整各區塊最新數值,給總覽頁一次顯示用,不重新抓資料) ----------
+    try:
+        latest_row = df.iloc[-1]
+        prev_close = df.iloc[-2]["close"] if len(df) >= 2 else None
+        change = None if prev_close is None else latest_row["close"] - prev_close
+        change_pct = None if not prev_close else (change / prev_close * 100)
+
+        state = get_latest_state(full_df)
+
+        def _last_value(series_list):
+            return series_list[-1]["value"] if series_list else None
+
+        overview = {
+            "close": _clean(latest_row["close"]),
+            "change": _clean(change),
+            "change_pct": _clean(round(change_pct, 2)) if change_pct is not None else None,
+            "per": _clean(_last_value(valuation.get("PER", []))),
+            "pbr": _clean(_last_value(valuation.get("PBR", []))),
+            "rsi14": state["rsi14"],
+            "rsi_state": state["rsi_state"],
+            "ma_state": state["ma_state"],
+            "foreign_net_today": _clean(_last_value(institutional.get("foreign_net", []))),
+            "trust_net_today": _clean(_last_value(institutional.get("trust_net", []))),
+            "dealer_net_today": _clean(_last_value(institutional.get("dealer_net", []))),
+            "next_day_up_pct": analysis["next_day"].get("up_pct"),
+            "next_day_down_pct": analysis["next_day"].get("down_pct"),
+            "news_positive": news.get("positive_count", 0),
+            "news_negative": news.get("negative_count", 0),
+            "news_neutral": news.get("neutral_count", 0),
+        }
+    except Exception as e:
+        print(f"  總覽資料整理失敗({stock_id}): {e}")
+        overview = {}
+
     return {
         "stock_id": stock_id,
         "stock_name": stock_name,
@@ -227,6 +270,7 @@ def build_one(stock_id: str, token: str = None, stock_name: str = None) -> dict:
         "fundamentals": fundamentals,
         "analysis": analysis,
         "news": news,
+        "overview": overview,
     }
 
 

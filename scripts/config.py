@@ -6,7 +6,7 @@ FINMIND_API_URL = "https://api.finmindtrade.com/api/v4/data"
 FINMIND_TOKEN = ""
 
 # 想追蹤的股票清單(之後要加股票,改這裡就好)
-STOCK_LIST = ["2330", "2317", "2454", "3661"]
+STOCK_LIST = ["2330", "2317", "2454"]
 
 # 抓取區間:抓近 N 個交易日,避免每次抓全部歷史資料
 LOOKBACK_DAYS = 250
@@ -32,6 +32,9 @@ NEWS_MAX_ARTICLES = 30
 
 # 「隔日漲跌機率」預測準確率追蹤,最多保留幾筆歷史紀錄(每個交易日累積一筆)
 TRACK_RECORD_MAX_ENTRIES = 180
+
+# 三大法人連續買超/賣超超過幾天算是「異常」,要標記出來提醒
+ANOMALY_STREAK_THRESHOLD = 3
 
 # 輸出JSON存放位置(GitHub Pages 會發布 docs/ 目錄)
 OUTPUT_DIR = "docs/data"
