@@ -9,11 +9,14 @@ const MA_COLORS = {
 
 const priceChartEl = document.getElementById("price-chart");
 const rsiChartEl = document.getElementById("rsi-chart");
+const instChartEl = document.getElementById("institutional-chart");
+const marginChartEl = document.getElementById("margin-chart");
 const selectEl = document.getElementById("stock-select");
 const updatedAtEl = document.getElementById("updated-at");
 const maLegendEl = document.getElementById("ma-legend");
 
-let priceChart, rsiChart, candleSeries, rsiSeries14, rsiSeries6;
+let priceChart, rsiChart, instChart, marginChart, candleSeries, rsiSeries14, rsiSeries6;
+let foreignSeries, trustSeries, dealerSeries, marginBalanceSeries, shortBalanceSeries;
 let maSeriesMap = {};
 let isSyncingRange = false;
 
@@ -53,18 +56,52 @@ function initCharts() {
     ...chartBaseOptions(),
     width: rsiChartEl.clientWidth,
     height: rsiChartEl.clientHeight,
+    rightPriceScale: { borderColor: "#262a36", scaleMargins: { top: 0.1, bottom: 0.1 } },
   });
 
-  rsiSeries14 = rsiChart.addLineSeries({ color: "#4d8dff", lineWidth: 2 });
+  // RSI 固定在 0-100 區間顯示,用 autoscaleInfoProvider 強制範圍,不受資料本身極值影響
+  rsiSeries14 = rsiChart.addLineSeries({
+    color: "#4d8dff", lineWidth: 2,
+    autoscaleInfoProvider: () => ({ priceRange: { minValue: 0, maxValue: 100 } }),
+  });
   rsiSeries6 = rsiChart.addLineSeries({ color: "#f2b705", lineWidth: 1 });
 
-  // 上下兩張圖的時間軸同步(拖曳/縮放其中一張,另一張跟著動)
-  syncTimeScales(priceChart, rsiChart);
-  syncTimeScales(rsiChart, priceChart);
+  // ---------- 三大法人買賣超圖(三條淨買賣超折線) ----------
+  instChart = LightweightCharts.createChart(instChartEl, {
+    ...chartBaseOptions(),
+    width: instChartEl.clientWidth,
+    height: instChartEl.clientHeight,
+  });
+  foreignSeries = instChart.addLineSeries({ color: "#d6382e", lineWidth: 1.5 });
+  trustSeries = instChart.addLineSeries({ color: "#f2b705", lineWidth: 1.5 });
+  dealerSeries = instChart.addLineSeries({ color: "#4d8dff", lineWidth: 1.5 });
+
+  // ---------- 融資融券圖(融資餘額用左軸,融券餘額用右軸,單位量級差很多) ----------
+  marginChart = LightweightCharts.createChart(marginChartEl, {
+    ...chartBaseOptions(),
+    width: marginChartEl.clientWidth,
+    height: marginChartEl.clientHeight,
+    leftPriceScale: { visible: true, borderColor: "#262a36" },
+  });
+  marginBalanceSeries = marginChart.addLineSeries({
+    color: "#4d8dff", lineWidth: 1.5, priceScaleId: "left",
+  });
+  shortBalanceSeries = marginChart.addLineSeries({
+    color: "#ff6fa5", lineWidth: 1.5, priceScaleId: "right",
+  });
+
+  // 四張圖的時間軸互相同步
+  [priceChart, rsiChart, instChart, marginChart].forEach((source) => {
+    [priceChart, rsiChart, instChart, marginChart].forEach((target) => {
+      if (source !== target) syncTimeScales(source, target);
+    });
+  });
 
   window.addEventListener("resize", () => {
     priceChart.resize(priceChartEl.clientWidth, priceChartEl.clientHeight);
     rsiChart.resize(rsiChartEl.clientWidth, rsiChartEl.clientHeight);
+    instChart.resize(instChartEl.clientWidth, instChartEl.clientHeight);
+    marginChart.resize(marginChartEl.clientWidth, marginChartEl.clientHeight);
   });
 }
 
@@ -112,8 +149,19 @@ async function loadStock(stockId) {
   rsiSeries14.setData(data.rsi?.RSI14 || []);
   rsiSeries6.setData(data.rsi?.RSI6 || []);
 
+  const inst = data.institutional || {};
+  foreignSeries.setData(inst.foreign_net || []);
+  trustSeries.setData(inst.trust_net || []);
+  dealerSeries.setData(inst.dealer_net || []);
+
+  const margin = data.margin || {};
+  marginBalanceSeries.setData(margin.margin_balance || []);
+  shortBalanceSeries.setData(margin.short_balance || []);
+
   priceChart.timeScale().fitContent();
   rsiChart.timeScale().fitContent();
+  instChart.timeScale().fitContent();
+  marginChart.timeScale().fitContent();
 
   const updated = new Date(data.updated_at);
   updatedAtEl.textContent = `資料更新: ${updated.toLocaleString("zh-TW")}`;
