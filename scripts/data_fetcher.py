@@ -89,3 +89,36 @@ def get_margin_trading(stock_id: str, start_date: str, end_date: str, token: str
     })
     cols = ["date", "margin_balance", "margin_buy", "margin_sell", "short_balance", "short_buy", "short_sell"]
     return df[cols]
+
+
+def get_broker_net_trading(stock_id: str, date: str, token: str = None) -> pd.DataFrame:
+    """
+    取得券商分點買賣資料(俗稱「主力買賣」),用來看是哪些券商分點大量買進/賣出。
+
+    注意:這個資料集在 FinMind v4 是「重量級資料集」,只能查「單一日期」,
+    不能像股價/三大法人那樣抓一段日期區間,所以我們只抓最新交易日這一天,
+    整理成分點買賣超排行榜(不是歷史趨勢)。
+
+    回傳欄位: securities_trader(券商分點名稱), buy, sell, net(買超股數,由高到低排序)
+    """
+    url = "https://api.finmindtrade.com/api/v4/taiwan_stock_trading_daily_report"
+    params = {"data_id": stock_id, "start_date": date}
+    use_token = token or FINMIND_TOKEN
+    if use_token:
+        params["token"] = use_token
+
+    resp = requests.get(url, params=params, timeout=15)
+    resp.raise_for_status()
+    payload = resp.json()
+
+    if payload.get("status") != 200:
+        raise RuntimeError(f"FinMind API 錯誤: {payload.get('msg')}")
+
+    df = pd.DataFrame(payload["data"])
+    if df.empty:
+        raise ValueError(f"查無主力買賣資料: stock_id={stock_id}, date={date}")
+
+    # 同一券商分點同一天可能有多筆不同價位的成交紀錄,先加總
+    grouped = df.groupby("securities_trader", as_index=False)[["buy", "sell"]].sum()
+    grouped["net"] = grouped["buy"] - grouped["sell"]
+    return grouped.sort_values("net", ascending=False).reset_index(drop=True)
