@@ -49,7 +49,7 @@ def get_institutional_investors(stock_id: str, start_date: str, end_date: str, t
 
     回傳欄位: date, foreign_net, trust_net, dealer_net, total_net (單位:股)
     """
-    df = _fetch("InstitutionalInvestorsBuySell", stock_id, start_date, end_date, token)
+    df = _fetch("TaiwanStockInstitutionalInvestorsBuySell", stock_id, start_date, end_date, token)
     df["date"] = pd.to_datetime(df["date"])
     df["net"] = df["buy"].astype(float) - df["sell"].astype(float)
 
