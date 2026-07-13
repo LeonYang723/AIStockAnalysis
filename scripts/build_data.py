@@ -18,13 +18,17 @@ from datetime import datetime, timedelta
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(SCRIPT_DIR)
 
-from config import STOCK_LIST, LOOKBACK_DAYS, RSI_PERIODS, MA_WINDOWS, FUNDAMENTALS_QUARTERS, OUTPUT_DIR
+from config import (
+    STOCK_LIST, LOOKBACK_DAYS, RSI_PERIODS, MA_WINDOWS, FUNDAMENTALS_QUARTERS,
+    ANALYSIS_LOOKBACK_YEARS, OUTPUT_DIR,
+)
 from data_fetcher import (
     get_stock_price, get_institutional_investors, get_margin_trading,
     get_valuation_ratios, get_financial_statements, get_balance_sheet, get_cash_flow,
     get_stock_names,
 )
 from indicators import add_moving_averages, add_rsi_columns
+from analysis import generate_trend_narrative, compute_next_day_probability
 
 OUTPUT_DIR_ABS = os.path.join(REPO_ROOT, OUTPUT_DIR)
 
@@ -52,15 +56,20 @@ def _series_from_df(df, value_cols: list) -> dict:
 
 def build_one(stock_id: str, token: str = None, stock_name: str = None) -> dict:
     end_date = datetime.today().strftime("%Y-%m-%d")
+
+    # 「隔日漲跌機率」的統計需要比較長的歷史資料才夠可靠,
+    # 所以股價改抓 ANALYSIS_LOOKBACK_YEARS 年份,均線/RSI也算在這個較長的區間上,
+    # 圖表顯示時再裁切成最近 LOOKBACK_DAYS 筆,兩邊互不影響。
+    analysis_start_date = (datetime.today() - timedelta(days=int(ANALYSIS_LOOKBACK_YEARS * 365))).strftime("%Y-%m-%d")
     start_date = (datetime.today() - timedelta(days=int(LOOKBACK_DAYS * 1.6))).strftime("%Y-%m-%d")
-    # *1.6 概略換算交易日 vs 日曆日,確保抓到足夠的交易日數量
+    # start_date(較短區間)用來過濾三大法人/融資融券/本益比這些「顯示用」的日資料
 
-    df = get_stock_price(stock_id, start_date, end_date, token=token)
-    df = add_moving_averages(df, windows=MA_WINDOWS)
-    df = add_rsi_columns(df, periods=RSI_PERIODS)
+    full_df = get_stock_price(stock_id, analysis_start_date, end_date, token=token)
+    full_df = add_moving_averages(full_df, windows=MA_WINDOWS)
+    full_df = add_rsi_columns(full_df, periods=RSI_PERIODS)
 
-    # 只保留最近 LOOKBACK_DAYS 個交易日,避免檔案太大
-    df = df.tail(LOOKBACK_DAYS).reset_index(drop=True)
+    # 只保留最近 LOOKBACK_DAYS 個交易日給圖表顯示,避免檔案太大
+    df = full_df.tail(LOOKBACK_DAYS).reset_index(drop=True)
 
     price = []
     volume = []
@@ -87,6 +96,22 @@ def build_one(stock_id: str, token: str = None, stock_name: str = None) -> dict:
             v = _clean(row[f"RSI{p}"])
             if v is not None:
                 rsi_series[f"RSI{p}"].append({"time": t, "value": v})
+
+    # ---------- 近期走向分析 + 隔日漲跌機率(用 full_df 完整歷史資料統計) ----------
+    try:
+        narrative = generate_trend_narrative(full_df)
+    except Exception as e:
+        print(f"  近期走向分析產生失敗({stock_id}): {e}")
+        narrative = ""
+
+    try:
+        next_day = compute_next_day_probability(full_df)
+    except Exception as e:
+        print(f"  隔日漲跌機率統計失敗({stock_id}): {e}")
+        next_day = {"up_pct": None, "down_pct": None, "sample_size": 0,
+                    "match_level": "error", "state_label": "統計時發生錯誤"}
+
+    analysis = {"narrative": narrative, "next_day": next_day}
 
     # ---------- 三大法人 ----------
     try:
@@ -171,6 +196,7 @@ def build_one(stock_id: str, token: str = None, stock_name: str = None) -> dict:
         "margin": margin,
         "valuation": valuation,
         "fundamentals": fundamentals,
+        "analysis": analysis,
     }
 
 

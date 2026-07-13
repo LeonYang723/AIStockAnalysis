@@ -20,5 +20,11 @@ MA_WINDOWS = [5, 10, 20, 60]
 # 基本面資料(EPS/ROE等)要顯示近幾季
 FUNDAMENTALS_QUARTERS = 8
 
+# 「隔日漲跌機率」統計要抓近幾年的歷史資料(樣本越多統計越穩定,但抓取會比較慢)
+ANALYSIS_LOOKBACK_YEARS = 5
+
+# 同一種技術狀態的歷史樣本數至少要達到這個數字,統計才算可信,不夠會自動退回較寬鬆的分類
+ANALYSIS_MIN_SAMPLE = 20
+
 # 輸出JSON存放位置(GitHub Pages 會發布 docs/ 目錄)
 OUTPUT_DIR = "docs/data"

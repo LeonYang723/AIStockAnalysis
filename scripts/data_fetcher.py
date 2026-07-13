@@ -16,7 +16,7 @@ def _fetch(dataset: str, data_id: str, start_date: str, end_date: str, token: st
     if use_token:
         params["token"] = use_token
 
-    resp = requests.get(FINMIND_API_URL, params=params, timeout=15)
+    resp = requests.get(FINMIND_API_URL, params=params, timeout=30)
     resp.raise_for_status()
     payload = resp.json()
 
