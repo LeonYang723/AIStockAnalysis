@@ -16,6 +16,7 @@
       <label for="page-select">頁面:</label>
       <select id="page-select">
         <option value="overview">總覽</option>
+        <option value="compare">多股比較</option>
         <option value="price">K線 / 走向分析</option>
         <option value="indicators">技術籌碼指標</option>
         <option value="fundamentals">基本面統計</option>
@@ -24,6 +25,8 @@
       <span id="updated-at" class="updated-at"></span>
     </div>
   </header>
+
+  <div id="stale-warning" class="stale-warning" style="display:none"></div>
 
   <main>
     <!-- ===== 頁面0: 總覽 ===== -->
@@ -83,6 +86,38 @@
         <p class="overview-note">
           這個頁面彙整其他分頁裡最新的關鍵數字,方便快速掃過重點;細節數據與圖表請切到對應分頁查看。
         </p>
+      </section>
+    </div>
+
+    <!-- ===== 頁面0.5: 多股比較 ===== -->
+    <div class="page-group" data-page="compare">
+      <section class="chart-section">
+        <div class="chart-header">
+          <span>多股比較總表</span>
+          <span id="compare-count" class="news-total"></span>
+        </div>
+        <div class="compare-table-wrap">
+          <table class="compare-table" id="compare-table">
+            <thead>
+              <tr>
+                <th>股票</th>
+                <th>現價</th>
+                <th>漲跌%</th>
+                <th>PER</th>
+                <th>PBR</th>
+                <th>RSI14</th>
+                <th>均線</th>
+                <th>隔日漲跌機率</th>
+                <th>新聞氣氛</th>
+                <th>異常</th>
+              </tr>
+            </thead>
+            <tbody id="compare-table-body">
+              <tr><td colspan="10">載入中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="overview-note">點任一列可以切換到該股票的總覽頁查看詳細內容。</p>
       </section>
     </div>
 
