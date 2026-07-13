@@ -11,12 +11,17 @@ const priceChartEl = document.getElementById("price-chart");
 const rsiChartEl = document.getElementById("rsi-chart");
 const instChartEl = document.getElementById("institutional-chart");
 const marginChartEl = document.getElementById("margin-chart");
+const valuationChartEl = document.getElementById("valuation-chart");
 const selectEl = document.getElementById("stock-select");
 const updatedAtEl = document.getElementById("updated-at");
 const maLegendEl = document.getElementById("ma-legend");
+const fundHeadEl = document.getElementById("fund-table-head");
+const fundBodyEl = document.getElementById("fund-table-body");
 
-let priceChart, rsiChart, instChart, marginChart, candleSeries, rsiSeries14, rsiSeries6;
+let priceChart, rsiChart, instChart, marginChart, valuationChart;
+let candleSeries, rsiSeries14, rsiSeries6;
 let foreignSeries, trustSeries, dealerSeries, marginBalanceSeries, shortBalanceSeries;
+let perSeries, pbrSeries;
 let maSeriesMap = {};
 let isSyncingRange = false;
 
@@ -90,9 +95,24 @@ function initCharts() {
     color: "#ff6fa5", lineWidth: 1.5, priceScaleId: "right",
   });
 
-  // 四張圖的時間軸互相同步
-  [priceChart, rsiChart, instChart, marginChart].forEach((source) => {
-    [priceChart, rsiChart, instChart, marginChart].forEach((target) => {
+  // ---------- 本益比 / 淨值比(PER左軸, PBR右軸) ----------
+  valuationChart = LightweightCharts.createChart(valuationChartEl, {
+    ...chartBaseOptions(),
+    width: valuationChartEl.clientWidth,
+    height: valuationChartEl.clientHeight,
+    leftPriceScale: { visible: true, borderColor: "#262a36" },
+  });
+  perSeries = valuationChart.addLineSeries({
+    color: "#4d8dff", lineWidth: 1.5, priceScaleId: "left",
+  });
+  pbrSeries = valuationChart.addLineSeries({
+    color: "#ff6fa5", lineWidth: 1.5, priceScaleId: "right",
+  });
+
+  // 五張日資料圖的時間軸互相同步(基本面表格是季資料,不在此同步群組內)
+  const syncGroup = [priceChart, rsiChart, instChart, marginChart, valuationChart];
+  syncGroup.forEach((source) => {
+    syncGroup.forEach((target) => {
       if (source !== target) syncTimeScales(source, target);
     });
   });
@@ -102,6 +122,7 @@ function initCharts() {
     rsiChart.resize(rsiChartEl.clientWidth, rsiChartEl.clientHeight);
     instChart.resize(instChartEl.clientWidth, instChartEl.clientHeight);
     marginChart.resize(marginChartEl.clientWidth, marginChartEl.clientHeight);
+    valuationChart.resize(valuationChartEl.clientWidth, valuationChartEl.clientHeight);
   });
 }
 
@@ -136,6 +157,55 @@ function renderMaSeries(maData) {
   });
 }
 
+const FUND_ROWS = [
+  { key: "eps", label: "EPS(元)", digits: 2 },
+  { key: "revenue_yi", label: "營收(億)", digits: 1 },
+  { key: "gross_margin", label: "毛利率(%)", digits: 1 },
+  { key: "operating_margin", label: "營益率(%)", digits: 1 },
+  { key: "roe", label: "ROE(%)", digits: 1 },
+  { key: "roa", label: "ROA(%)", digits: 1 },
+  { key: "debt_ratio", label: "負債比(%)", digits: 1 },
+  { key: "operating_cash_flow_yi", label: "營業現金流(億)", digits: 1 },
+];
+
+function formatQuarterLabel(dateStr) {
+  const d = new Date(dateStr);
+  const year = d.getFullYear() % 100;
+  const month = d.getMonth() + 1; // 0-indexed
+  const quarter = Math.floor((month - 1) / 3) + 1;
+  return `${year}Q${quarter}`;
+}
+
+function renderFundamentalsTable(fundamentals) {
+  fundHeadEl.innerHTML = "";
+  fundBodyEl.innerHTML = "";
+
+  const quarters = fundamentals?.quarters || [];
+  if (quarters.length === 0) {
+    fundHeadEl.innerHTML = `<th>季度</th><th>無資料</th>`;
+    return;
+  }
+
+  // 表頭:第一格空白(給列標籤用),其餘是每一季的標籤
+  let headHtml = `<th>季度</th>`;
+  quarters.forEach((q) => {
+    headHtml += `<th>${formatQuarterLabel(q.date)}</th>`;
+  });
+  fundHeadEl.innerHTML = headHtml;
+
+  // 每個指標一列,橫向對照各季數值
+  FUND_ROWS.forEach((rowDef) => {
+    let rowHtml = `<td>${rowDef.label}</td>`;
+    quarters.forEach((q) => {
+      const v = q[rowDef.key];
+      rowHtml += `<td>${v === null || v === undefined ? "-" : v.toFixed(rowDef.digits)}</td>`;
+    });
+    const tr = document.createElement("tr");
+    tr.innerHTML = rowHtml;
+    fundBodyEl.appendChild(tr);
+  });
+}
+
 async function loadStock(stockId) {
   const res = await fetch(`data/${stockId}.json?t=${Date.now()}`);
   if (!res.ok) {
@@ -158,10 +228,17 @@ async function loadStock(stockId) {
   marginBalanceSeries.setData(margin.margin_balance || []);
   shortBalanceSeries.setData(margin.short_balance || []);
 
+  const valuation = data.valuation || {};
+  perSeries.setData(valuation.PER || []);
+  pbrSeries.setData(valuation.PBR || []);
+
+  renderFundamentalsTable(data.fundamentals);
+
   priceChart.timeScale().fitContent();
   rsiChart.timeScale().fitContent();
   instChart.timeScale().fitContent();
   marginChart.timeScale().fitContent();
+  valuationChart.timeScale().fitContent();
 
   const updated = new Date(data.updated_at);
   updatedAtEl.textContent = `資料更新: ${updated.toLocaleString("zh-TW")}`;

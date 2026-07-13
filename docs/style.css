@@ -104,6 +104,8 @@ main {
 .dot.dealer { background: #4d8dff; }
 .dot.margin { background: #4d8dff; }
 .dot.short { background: #ff6fa5; }
+.dot.per { background: #4d8dff; }
+.dot.pbr { background: #ff6fa5; }
 
 .chart-box {
   width: 100%;
@@ -113,6 +115,47 @@ main {
 .rsi-chart { height: 160px; }
 .inst-chart { height: 200px; }
 .margin-chart { height: 200px; }
+.valuation-chart { height: 200px; }
+
+.fund-table-wrap {
+  overflow-x: auto;
+}
+
+.fund-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.fund-table th,
+.fund-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+}
+
+.fund-table th:first-child,
+.fund-table td:first-child {
+  text-align: left;
+  color: var(--text-dim);
+  position: sticky;
+  left: 0;
+  background: var(--panel);
+}
+
+.fund-table thead th {
+  color: var(--text-dim);
+  font-weight: 500;
+  font-size: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.fund-note {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--text-dim);
+}
 
 footer {
   padding: 16px 24px 32px;
