@@ -15,6 +15,7 @@
       <select id="stock-select"></select>
       <label for="page-select">頁面:</label>
       <select id="page-select">
+        <option value="overview">總覽</option>
         <option value="price">K線 / 走向分析</option>
         <option value="indicators">技術籌碼指標</option>
         <option value="fundamentals">基本面統計</option>
@@ -25,6 +26,66 @@
   </header>
 
   <main>
+    <!-- ===== 頁面0: 總覽 ===== -->
+    <div class="page-group" data-page="overview">
+      <section class="chart-section">
+        <div class="chart-header">
+          <span id="overview-stock-title">總覽</span>
+          <span id="overview-updated" class="news-total"></span>
+        </div>
+
+        <div class="overview-grid">
+          <div class="overview-card overview-card-price">
+            <div class="overview-label">現價</div>
+            <div id="overview-close" class="overview-value overview-value-lg">-</div>
+            <div id="overview-change" class="overview-change"></div>
+          </div>
+
+          <div class="overview-card">
+            <div class="overview-label">本益比 PER</div>
+            <div id="overview-per" class="overview-value">-</div>
+          </div>
+
+          <div class="overview-card">
+            <div class="overview-label">淨值比 PBR</div>
+            <div id="overview-pbr" class="overview-value">-</div>
+          </div>
+
+          <div class="overview-card">
+            <div class="overview-label">RSI14</div>
+            <div id="overview-rsi" class="overview-value">-</div>
+            <div id="overview-rsi-state" class="overview-sub"></div>
+          </div>
+
+          <div class="overview-card">
+            <div class="overview-label">均線排列</div>
+            <div id="overview-ma-state" class="overview-value overview-value-sm">-</div>
+          </div>
+
+          <div class="overview-card">
+            <div class="overview-label">今日三大法人(張)</div>
+            <div id="overview-institutional" class="overview-inst-list"></div>
+          </div>
+
+          <div class="overview-card">
+            <div class="overview-label">隔日漲跌機率</div>
+            <div id="overview-next-day" class="overview-value overview-value-sm">-</div>
+          </div>
+
+          <div class="overview-card">
+            <div class="overview-label">新聞氣氛(近14天)</div>
+            <div id="overview-news" class="overview-value overview-value-sm">-</div>
+          </div>
+        </div>
+
+        <div id="overview-anomaly-banner" class="overview-anomaly-banner"></div>
+
+        <p class="overview-note">
+          這個頁面彙整其他分頁裡最新的關鍵數字,方便快速掃過重點;細節數據與圖表請切到對應分頁查看。
+        </p>
+      </section>
+    </div>
+
     <!-- ===== 頁面1: K線 / 走向分析 ===== -->
     <div class="page-group" data-page="price">
       <section class="chart-section">
@@ -99,6 +160,7 @@
       <section class="chart-section">
         <div class="chart-header">
           <span>三大法人買賣超(張)</span>
+          <div id="inst-anomaly-badges" class="anomaly-badges"></div>
           <div class="legend-static">
             <span class="dot foreign"></span>外資
             <span class="dot trust"></span>投信

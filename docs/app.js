@@ -37,6 +37,20 @@ const newsNegCountEl = document.getElementById("news-neg-count");
 const newsListEl = document.getElementById("news-list");
 const trackSummaryEl = document.getElementById("track-record-summary");
 const trackBodyEl = document.getElementById("track-record-body");
+const instAnomalyBadgesEl = document.getElementById("inst-anomaly-badges");
+const overviewStockTitleEl = document.getElementById("overview-stock-title");
+const overviewUpdatedEl = document.getElementById("overview-updated");
+const overviewCloseEl = document.getElementById("overview-close");
+const overviewChangeEl = document.getElementById("overview-change");
+const overviewPerEl = document.getElementById("overview-per");
+const overviewPbrEl = document.getElementById("overview-pbr");
+const overviewRsiEl = document.getElementById("overview-rsi");
+const overviewRsiStateEl = document.getElementById("overview-rsi-state");
+const overviewMaStateEl = document.getElementById("overview-ma-state");
+const overviewInstitutionalEl = document.getElementById("overview-institutional");
+const overviewNextDayEl = document.getElementById("overview-next-day");
+const overviewNewsEl = document.getElementById("overview-news");
+const overviewAnomalyBannerEl = document.getElementById("overview-anomaly-banner");
 
 let manifestStockNames = {};
 let currentPage = "price";
@@ -367,6 +381,87 @@ function renderTrackRecord(trackRecord) {
   });
 }
 
+const ANOMALY_LABEL_MAP = { foreign: "外資", trust: "投信", dealer: "自營商" };
+
+function renderInstAnomalyBadges(anomalies) {
+  instAnomalyBadgesEl.innerHTML = "";
+  if (!anomalies) return;
+
+  Object.entries(anomalies).forEach(([key, info]) => {
+    const badge = document.createElement("span");
+    const dirClass = info.direction === "buy" ? "buy" : "sell";
+    const dirText = info.direction === "buy" ? "買超" : "賣超";
+    badge.className = `anomaly-badge ${dirClass}`;
+    badge.textContent = `⚠ ${ANOMALY_LABEL_MAP[key] || key}連續${info.streak}天${dirText}`;
+    instAnomalyBadgesEl.appendChild(badge);
+  });
+}
+
+function renderOverview(data) {
+  const overview = data.overview || {};
+  const stockName = data.stock_name || manifestStockNames[data.stock_id] || "";
+  overviewStockTitleEl.textContent = stockName ? `${stockName} ${data.stock_id} 總覽` : `${data.stock_id} 總覽`;
+  overviewUpdatedEl.textContent = data.updated_at
+    ? `資料更新: ${new Date(data.updated_at).toLocaleString("zh-TW")}`
+    : "";
+
+  overviewCloseEl.textContent = overview.close != null ? overview.close.toFixed(2) : "-";
+
+  if (overview.change != null) {
+    const sign = overview.change > 0 ? "+" : "";
+    const cls = overview.change > 0 ? "up" : overview.change < 0 ? "down" : "flat";
+    overviewChangeEl.className = `overview-change ${cls}`;
+    overviewChangeEl.textContent = `${sign}${overview.change.toFixed(2)} (${sign}${overview.change_pct}%)`;
+  } else {
+    overviewChangeEl.textContent = "";
+  }
+
+  overviewPerEl.textContent = overview.per != null ? overview.per.toFixed(2) : "-";
+  overviewPbrEl.textContent = overview.pbr != null ? overview.pbr.toFixed(2) : "-";
+  overviewRsiEl.textContent = overview.rsi14 != null ? overview.rsi14 : "-";
+  overviewRsiStateEl.textContent = overview.rsi_state || "";
+  overviewMaStateEl.textContent = overview.ma_state || "-";
+
+  overviewInstitutionalEl.innerHTML = "";
+  [
+    { label: "外資", value: overview.foreign_net_today },
+    { label: "投信", value: overview.trust_net_today },
+    { label: "自營商", value: overview.dealer_net_today },
+  ].forEach((item) => {
+    const div = document.createElement("div");
+    if (item.value == null) {
+      div.textContent = `${item.label}: -`;
+    } else {
+      const cls = item.value > 0 ? "up" : item.value < 0 ? "down" : "";
+      const sign = item.value > 0 ? "+" : "";
+      div.innerHTML = `${item.label}: <span class="${cls}">${sign}${item.value}</span>`;
+    }
+    overviewInstitutionalEl.appendChild(div);
+  });
+
+  overviewNextDayEl.textContent =
+    overview.next_day_up_pct != null
+      ? `上漲${overview.next_day_up_pct}% / 下跌${overview.next_day_down_pct}%`
+      : "資料不足";
+
+  const newsTotal = (overview.news_positive || 0) + (overview.news_negative || 0) + (overview.news_neutral || 0);
+  overviewNewsEl.textContent =
+    newsTotal > 0
+      ? `利多${overview.news_positive} / 中性${overview.news_neutral} / 利空${overview.news_negative}`
+      : "無相關新聞";
+
+  // 把三大法人連續買賣超的異常也整理到總覽頁顯示
+  overviewAnomalyBannerEl.innerHTML = "";
+  const anomalies = data.institutional?.anomalies || {};
+  Object.entries(anomalies).forEach(([key, info]) => {
+    const dirText = info.direction === "buy" ? "買超" : "賣超";
+    const line = document.createElement("div");
+    line.className = "anomaly-line";
+    line.textContent = `⚠ ${ANOMALY_LABEL_MAP[key] || key} 連續 ${info.streak} 天${dirText}`;
+    overviewAnomalyBannerEl.appendChild(line);
+  });
+}
+
 async function loadStock(stockId) {
   const res = await fetch(`data/${stockId}.json?t=${Date.now()}`);
   if (!res.ok) {
@@ -389,6 +484,7 @@ async function loadStock(stockId) {
   foreignSeries.setData(inst.foreign_net || []);
   trustSeries.setData(inst.trust_net || []);
   dealerSeries.setData(inst.dealer_net || []);
+  renderInstAnomalyBadges(inst.anomalies);
 
   const margin = data.margin || {};
   marginBalanceSeries.setData(margin.margin_balance || []);
@@ -402,6 +498,7 @@ async function loadStock(stockId) {
   renderAnalysis(data.analysis);
   renderTrackRecord(data.analysis?.next_day?.track_record);
   renderNews(data.news);
+  renderOverview(data);
 
   priceChart.timeScale().fitContent();
   rsiChart.timeScale().fitContent();
@@ -439,5 +536,5 @@ pageSelectEl.addEventListener("change", () => setActivePage(pageSelectEl.value))
 initCharts();
 // 一定要在 initCharts() 之後才切換分頁可見度:
 // 圖表建立當下需要容器有實際寬高,這時候三個分頁都還是可見的,寬高才會正確量到。
-setActivePage("price");
+setActivePage("overview");
 loadManifestAndInit();
