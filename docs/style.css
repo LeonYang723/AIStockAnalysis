@@ -114,62 +114,6 @@ main {
 .inst-chart { height: 200px; }
 .margin-chart { height: 200px; }
 
-.mf-date {
-  font-size: 12px;
-  color: var(--text-dim);
-}
-
-.mf-wrap {
-  display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.mf-col {
-  flex: 1;
-  min-width: 240px;
-}
-
-.mf-col-title {
-  font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 6px;
-  padding-bottom: 4px;
-  border-bottom: 1px solid var(--border);
-}
-
-.mf-col-title.mf-buy { color: #d6382e; }
-.mf-col-title.mf-sell { color: #1e9e5a; }
-
-.mf-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-.mf-table td {
-  padding: 6px 4px;
-  border-bottom: 1px solid var(--border);
-}
-
-.mf-table td.mf-name {
-  color: var(--text);
-}
-
-.mf-table td.mf-net {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-.mf-table td.mf-net.pos { color: #d6382e; }
-.mf-table td.mf-net.neg { color: #1e9e5a; }
-
-.mf-note {
-  margin: 10px 0 0;
-  font-size: 12px;
-  color: var(--text-dim);
-}
-
 footer {
   padding: 16px 24px 32px;
   text-align: center;
