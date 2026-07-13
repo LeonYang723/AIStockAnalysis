@@ -229,9 +229,32 @@ def get_cash_flow(stock_id: str, start_date: str, end_date: str, token: str = No
 def get_stock_news(stock_id: str, start_date: str, end_date: str, token: str = None) -> pd.DataFrame:
     """
     取得個股相關新聞。
+    注意:這個資料集的起始日期參數名稱是「date」,不是其他資料集常用的「start_date」,
+    所以這裡不用共用的 _fetch(),自己組參數呼叫。
+
     回傳欄位: date, title, source, link,依日期由新到舊排序。
     """
-    df = _fetch("TaiwanStockNews", stock_id, start_date, end_date, token)
+    params = {
+        "dataset": "TaiwanStockNews",
+        "data_id": stock_id,
+        "date": start_date,
+        "end_date": end_date,
+    }
+    use_token = token or FINMIND_TOKEN
+    if use_token:
+        params["token"] = use_token
+
+    resp = requests.get(FINMIND_API_URL, params=params, timeout=20)
+    resp.raise_for_status()
+    payload = resp.json()
+
+    if payload.get("status") != 200:
+        raise RuntimeError(f"FinMind API 錯誤: {payload.get('msg')}")
+
+    df = pd.DataFrame(payload["data"])
+    if df.empty:
+        raise ValueError(f"查無新聞資料: stock_id={stock_id}")
+
     df["date"] = pd.to_datetime(df["date"])
     df = df.sort_values("date", ascending=False).reset_index(drop=True)
     # 同一則新聞有時會重複出現,依標題+連結去重
