@@ -30,6 +30,7 @@ from data_fetcher import (
 from indicators import add_moving_averages, add_rsi_columns
 from analysis import generate_trend_narrative, compute_next_day_probability
 from news_analysis import summarize_news
+from prediction_tracker import load_log, save_log, resolve_pending, add_new_prediction, compute_track_record
 
 OUTPUT_DIR_ABS = os.path.join(REPO_ROOT, OUTPUT_DIR)
 
@@ -112,6 +113,23 @@ def build_one(stock_id: str, token: str = None, stock_name: str = None) -> dict:
         next_day = {"up_pct": None, "down_pct": None, "sample_size": 0,
                     "match_level": "error", "state_label": "統計時發生錯誤"}
 
+    # ---------- 預測準確率追蹤(持續累積,存成獨立檔案跨執行留存) ----------
+    try:
+        pred_log_path = os.path.join(OUTPUT_DIR_ABS, f"{stock_id}_predictions.json")
+        pred_log = load_log(pred_log_path)
+        pred_log = resolve_pending(pred_log, full_df[["date", "close"]])
+
+        latest_date_str = full_df["date"].max().strftime("%Y-%m-%d")
+        pred_log = add_new_prediction(pred_log, latest_date_str, next_day)
+
+        save_log(pred_log_path, pred_log)
+        track_record = compute_track_record(pred_log)
+    except Exception as e:
+        print(f"  預測準確率追蹤失敗({stock_id}): {e}")
+        track_record = {"total_predictions": 0, "resolved_count": 0, "correct_count": 0,
+                         "accuracy_pct": None, "recent": []}
+
+    next_day["track_record"] = track_record
     analysis = {"narrative": narrative, "next_day": next_day}
 
     # ---------- 三大法人 ----------

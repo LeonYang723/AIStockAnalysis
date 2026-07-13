@@ -229,32 +229,38 @@ def get_cash_flow(stock_id: str, start_date: str, end_date: str, token: str = No
 def get_stock_news(stock_id: str, start_date: str, end_date: str, token: str = None) -> pd.DataFrame:
     """
     取得個股相關新聞。
-    注意:這個資料集的起始日期參數名稱是「date」,不是其他資料集常用的「start_date」,
-    所以這裡不用共用的 _fetch(),自己組參數呼叫。
+
+    注意:FinMind官方文件註明這個資料集是「單日一次請求」(Single day per request),
+    不能像其他資料集一樣帶 start_date+end_date 抓一段區間,只能傳單一日期(參數名稱是
+    start_date,但每次只會回傳那一天的新聞)。所以這裡對日期區間內的每一天各呼叫一次API,
+    再把結果合併起來。
 
     回傳欄位: date, title, source, link,依日期由新到舊排序。
     """
-    params = {
-        "dataset": "TaiwanStockNews",
-        "data_id": stock_id,
-        "date": start_date,
-        "end_date": end_date,
-    }
-    use_token = token or FINMIND_TOKEN
-    if use_token:
-        params["token"] = use_token
+    dates = pd.date_range(start=start_date, end=end_date)
+    frames = []
 
-    resp = requests.get(FINMIND_API_URL, params=params, timeout=20)
-    resp.raise_for_status()
-    payload = resp.json()
+    for d in dates:
+        d_str = d.strftime("%Y-%m-%d")
+        params = {"dataset": "TaiwanStockNews", "data_id": stock_id, "start_date": d_str}
+        use_token = token or FINMIND_TOKEN
+        if use_token:
+            params["token"] = use_token
 
-    if payload.get("status") != 200:
-        raise RuntimeError(f"FinMind API 錯誤: {payload.get('msg')}")
+        try:
+            resp = requests.get(FINMIND_API_URL, params=params, timeout=20)
+            resp.raise_for_status()
+            payload = resp.json()
+            if payload.get("status") == 200 and payload.get("data"):
+                frames.append(pd.DataFrame(payload["data"]))
+        except Exception:
+            # 單一天抓取失敗就跳過,不要讓整批新聞抓取因為某一天出錯而全部失敗
+            continue
 
-    df = pd.DataFrame(payload["data"])
-    if df.empty:
+    if not frames:
         raise ValueError(f"查無新聞資料: stock_id={stock_id}")
 
+    df = pd.concat(frames, ignore_index=True)
     df["date"] = pd.to_datetime(df["date"])
     df = df.sort_values("date", ascending=False).reset_index(drop=True)
     # 同一則新聞有時會重複出現,依標題+連結去重

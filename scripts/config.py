@@ -30,5 +30,8 @@ ANALYSIS_MIN_SAMPLE = 20
 NEWS_LOOKBACK_DAYS = 14
 NEWS_MAX_ARTICLES = 30
 
+# 「隔日漲跌機率」預測準確率追蹤,最多保留幾筆歷史紀錄(每個交易日累積一筆)
+TRACK_RECORD_MAX_ENTRIES = 180
+
 # 輸出JSON存放位置(GitHub Pages 會發布 docs/ 目錄)
 OUTPUT_DIR = "docs/data"
