@@ -85,12 +85,34 @@ main {
   font-size: 12px;
 }
 
+.legend-static {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 2px;
+}
+.dot.foreign { background: #d6382e; }
+.dot.trust { background: #f2b705; }
+.dot.dealer { background: #4d8dff; }
+.dot.margin { background: #4d8dff; }
+.dot.short { background: #ff6fa5; }
+
 .chart-box {
   width: 100%;
 }
 
 .price-chart { height: 420px; }
 .rsi-chart { height: 160px; }
+.inst-chart { height: 200px; }
+.margin-chart { height: 200px; }
 
 footer {
   padding: 16px 24px 32px;
