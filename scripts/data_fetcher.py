@@ -38,6 +38,33 @@ def get_stock_price(stock_id: str, start_date: str, end_date: str, token: str = 
     return df[["date", "open", "high", "low", "close", "volume"]]
 
 
+def get_stock_names(token: str = None) -> dict:
+    """
+    取得「股票代碼 -> 公司名稱」對照表(TaiwanStockInfo 是靜態參考表,
+    一次抓全市場即可,不需要 data_id 也不需要日期區間)。
+    回傳: {"2330": "台積電", "2317": "鴻海", ...}
+    """
+    params = {"dataset": "TaiwanStockInfo"}
+    use_token = token or FINMIND_TOKEN
+    if use_token:
+        params["token"] = use_token
+
+    resp = requests.get(FINMIND_API_URL, params=params, timeout=20)
+    resp.raise_for_status()
+    payload = resp.json()
+
+    if payload.get("status") != 200:
+        raise RuntimeError(f"FinMind API 錯誤: {payload.get('msg')}")
+
+    df = pd.DataFrame(payload["data"])
+    if df.empty:
+        raise ValueError("查無 TaiwanStockInfo 資料")
+
+    # 同一股票代碼可能因為市場別(上市/上櫃)重複列出,取第一筆即可
+    df = df.drop_duplicates(subset="stock_id", keep="first")
+    return dict(zip(df["stock_id"], df["stock_name"]))
+
+
 def get_institutional_investors(stock_id: str, start_date: str, end_date: str, token: str = None) -> pd.DataFrame:
     """
     取得三大法人買賣超。
@@ -103,13 +130,17 @@ def get_valuation_ratios(stock_id: str, start_date: str, end_date: str, token: s
     return df[["date", "PER", "PBR", "dividend_yield"]]
 
 
-def _pick_series(df: pd.DataFrame, candidates: list, label: str) -> pd.DataFrame:
+def _pick_series(df: pd.DataFrame, candidates: list, label: str, exclude: list = None) -> pd.DataFrame:
     """
     財報類資料集是長格式(每個會計科目一列,用 type 欄位區分),
     但 FinMind 官方文件沒有列出每個資料集完整的 type 命名,
     這裡依序嘗試候選關鍵字:先找完全相符,找不到再用模糊比對(contains)。
+    exclude: 模糊比對時要排除的關鍵字(避免抓到字串重疊但意義不同的科目,
+             例如找「Equity」時可能誤抓到「TotalLiabilitiesAndEquity」)。
     如果都找不到,把目前資料裡實際有哪些 type 印出來,方便除錯調整候選清單。
     """
+    exclude = exclude or []
+
     for keyword in candidates:
         exact = df[df["type"] == keyword]
         if not exact.empty:
@@ -117,6 +148,8 @@ def _pick_series(df: pd.DataFrame, candidates: list, label: str) -> pd.DataFrame
 
     for keyword in candidates:
         matched = df[df["type"].str.contains(keyword, case=False, na=False)]
+        for ex in exclude:
+            matched = matched[~matched["type"].str.contains(ex, case=False, na=False)]
         if not matched.empty:
             picked_type = matched["type"].iloc[0]
             sub = df[df["type"] == picked_type][["date", "value"]]
@@ -156,21 +189,27 @@ def get_financial_statements(stock_id: str, start_date: str, end_date: str, toke
 
 def get_balance_sheet(stock_id: str, start_date: str, end_date: str, token: str = None) -> pd.DataFrame:
     """
-    取得資產負債表相關數字: 總資產、總負債、股東權益,並計算負債比。
-    回傳欄位: date, total_assets, total_liabilities, equity, debt_ratio(%)
+    取得資產負債表相關數字: 總資產、股東權益,並計算總負債與負債比。
+
+    注意:總負債不直接抓 FinMind 的「TotalLiabilities」科目,
+    因為之前實測發現這個科目的模糊比對容易誤抓到「TotalLiabilitiesAndEquity」
+    (總負債+權益,依會計恆等式一定等於總資產),導致負債比永遠算成100%。
+    改用會計恆等式反推:總負債 = 總資產 - 股東權益,不管 FinMind 那邊科目怎麼命名都準確。
+
+    回傳欄位: date, total_assets, equity, total_liabilities, debt_ratio(%)
     """
     df = _fetch("TaiwanStockBalanceSheet", stock_id, start_date, end_date, token)
     df["date"] = pd.to_datetime(df["date"])
 
     total_assets = _pick_series(df, ["TotalAssets"], "total_assets")
-    total_liabilities = _pick_series(df, ["TotalLiabilities"], "total_liabilities")
     equity = _pick_series(
-        df, ["EquityAttributableToOwnersOfParent", "TotalEquity", "Equity"], "equity"
+        df, ["EquityAttributableToOwnersOfParent", "TotalEquity", "Equity"], "equity",
+        exclude=["Liabilities"],
     )
 
-    merged = total_assets.merge(total_liabilities, on="date", how="outer") \
-                          .merge(equity, on="date", how="outer") \
+    merged = total_assets.merge(equity, on="date", how="outer") \
                           .sort_values("date").reset_index(drop=True)
+    merged["total_liabilities"] = merged["total_assets"] - merged["equity"]
     merged["debt_ratio"] = merged["total_liabilities"] / merged["total_assets"] * 100
     return merged
 

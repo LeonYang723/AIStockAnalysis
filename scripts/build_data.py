@@ -22,6 +22,7 @@ from config import STOCK_LIST, LOOKBACK_DAYS, RSI_PERIODS, MA_WINDOWS, FUNDAMENT
 from data_fetcher import (
     get_stock_price, get_institutional_investors, get_margin_trading,
     get_valuation_ratios, get_financial_statements, get_balance_sheet, get_cash_flow,
+    get_stock_names,
 )
 from indicators import add_moving_averages, add_rsi_columns
 
@@ -49,7 +50,7 @@ def _series_from_df(df, value_cols: list) -> dict:
     return series
 
 
-def build_one(stock_id: str, token: str = None) -> dict:
+def build_one(stock_id: str, token: str = None, stock_name: str = None) -> dict:
     end_date = datetime.today().strftime("%Y-%m-%d")
     start_date = (datetime.today() - timedelta(days=int(LOOKBACK_DAYS * 1.6))).strftime("%Y-%m-%d")
     # *1.6 概略換算交易日 vs 日曆日,確保抓到足夠的交易日數量
@@ -160,6 +161,7 @@ def build_one(stock_id: str, token: str = None) -> dict:
 
     return {
         "stock_id": stock_id,
+        "stock_name": stock_name,
         "updated_at": datetime.now().isoformat(),
         "price": price,
         "volume": volume,
@@ -177,12 +179,24 @@ def main():
     token = os.environ.get("FINMIND_TOKEN", "")  # GitHub Actions Secrets 可帶入
 
     os.makedirs(OUTPUT_DIR_ABS, exist_ok=True)
+
+    # 股票名稱對照表只需要抓一次(不是每支股票各抓一次),抓不到就用空字典,
+    # 前端會 fallback 成只顯示股票代碼
+    try:
+        name_map = get_stock_names(token=token)
+        print(f"已取得股票名稱對照表,共 {len(name_map)} 檔")
+    except Exception as e:
+        print(f"股票名稱對照表抓取失敗: {e}")
+        name_map = {}
+
     manifest = []
+    manifest_names = {}
 
     for stock_id in stock_ids:
         print(f"抓取並計算 {stock_id} ...")
+        stock_name = name_map.get(stock_id)
         try:
-            data = build_one(stock_id, token=token)
+            data = build_one(stock_id, token=token, stock_name=stock_name)
         except Exception as e:
             print(f"  跳過 {stock_id},失敗原因: {e}")
             continue
@@ -192,12 +206,14 @@ def main():
             json.dump(data, f, ensure_ascii=False)
         print(f"  已輸出: {out_path} ({len(data['price'])} 筆)")
         manifest.append(stock_id)
+        manifest_names[stock_id] = stock_name
 
     # 輸出股票清單索引,前端下拉選單會讀這個
     manifest_path = os.path.join(OUTPUT_DIR_ABS, "manifest.json")
     with open(manifest_path, "w", encoding="utf-8") as f:
         json.dump({
             "stocks": manifest,
+            "stock_names": manifest_names,
             "updated_at": datetime.now().isoformat(),
         }, f, ensure_ascii=False)
     print(f"已輸出股票清單索引: {manifest_path}")
