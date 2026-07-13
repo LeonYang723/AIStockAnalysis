@@ -14,6 +14,9 @@ const marginChartEl = document.getElementById("margin-chart");
 const selectEl = document.getElementById("stock-select");
 const updatedAtEl = document.getElementById("updated-at");
 const maLegendEl = document.getElementById("ma-legend");
+const mfDateEl = document.getElementById("main-force-date");
+const mfBuyTableEl = document.querySelector("#mf-buy-table tbody");
+const mfSellTableEl = document.querySelector("#mf-sell-table tbody");
 
 let priceChart, rsiChart, instChart, marginChart, candleSeries, rsiSeries14, rsiSeries6;
 let foreignSeries, trustSeries, dealerSeries, marginBalanceSeries, shortBalanceSeries;
@@ -136,6 +139,39 @@ function renderMaSeries(maData) {
   });
 }
 
+function renderMainForce(mainForce) {
+  mfBuyTableEl.innerHTML = "";
+  mfSellTableEl.innerHTML = "";
+
+  if (!mainForce || !mainForce.date) {
+    mfDateEl.textContent = "無資料";
+    return;
+  }
+  mfDateEl.textContent = `資料日期: ${mainForce.date}`;
+
+  const fillTable = (tbody, rows) => {
+    if (!rows || rows.length === 0) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td class="mf-name" colspan="2">無資料</td>`;
+      tbody.appendChild(tr);
+      return;
+    }
+    rows.forEach((row) => {
+      const tr = document.createElement("tr");
+      const netClass = row.net >= 0 ? "pos" : "neg";
+      const sign = row.net > 0 ? "+" : "";
+      tr.innerHTML = `
+        <td class="mf-name">${row.trader}</td>
+        <td class="mf-net ${netClass}">${sign}${row.net}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  };
+
+  fillTable(mfBuyTableEl, mainForce.top_buy);
+  fillTable(mfSellTableEl, mainForce.top_sell);
+}
+
 async function loadStock(stockId) {
   const res = await fetch(`data/${stockId}.json?t=${Date.now()}`);
   if (!res.ok) {
@@ -157,6 +193,8 @@ async function loadStock(stockId) {
   const margin = data.margin || {};
   marginBalanceSeries.setData(margin.margin_balance || []);
   shortBalanceSeries.setData(margin.short_balance || []);
+
+  renderMainForce(data.main_force);
 
   priceChart.timeScale().fitContent();
   rsiChart.timeScale().fitContent();
