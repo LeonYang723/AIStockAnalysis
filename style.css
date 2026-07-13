@@ -1,0 +1,100 @@
+:root {
+  --bg: #0f1117;
+  --panel: #161922;
+  --border: #262a36;
+  --text: #e4e6eb;
+  --text-dim: #8b8f9a;
+  --accent: #4d8dff;
+  --up: #d6382e;
+  --down: #1e9e5a;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+header h1 {
+  font-size: 20px;
+  margin: 0;
+  font-weight: 600;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+#stock-select {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 14px;
+}
+
+.updated-at {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+main {
+  padding: 16px 24px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.chart-section {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px 16px;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+
+.ma-legend {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.chart-box {
+  width: 100%;
+}
+
+.price-chart { height: 420px; }
+.rsi-chart { height: 160px; }
+
+footer {
+  padding: 16px 24px 32px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-dim);
+}
