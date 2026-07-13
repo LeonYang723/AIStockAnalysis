@@ -13,6 +13,8 @@ const instChartEl = document.getElementById("institutional-chart");
 const marginChartEl = document.getElementById("margin-chart");
 const valuationChartEl = document.getElementById("valuation-chart");
 const selectEl = document.getElementById("stock-select");
+const pageSelectEl = document.getElementById("page-select");
+const pageGroupEls = document.querySelectorAll(".page-group");
 const updatedAtEl = document.getElementById("updated-at");
 const maLegendEl = document.getElementById("ma-legend");
 const fundHeadEl = document.getElementById("fund-table-head");
@@ -27,6 +29,7 @@ const probDownPctEl = document.getElementById("prob-down-pct");
 const probSampleSizeEl = document.getElementById("prob-sample-size");
 
 let manifestStockNames = {};
+let currentPage = "price";
 
 let priceChart, rsiChart, instChart, marginChart, valuationChart;
 let candleSeries, rsiSeries14, rsiSeries6;
@@ -127,13 +130,30 @@ function initCharts() {
     });
   });
 
-  window.addEventListener("resize", () => {
+  window.addEventListener("resize", () => resizeChartsForPage(currentPage));
+}
+
+// 每個分頁包含哪些圖表,切換分頁或視窗resize時,只需要重繪「目前看得到的」那些圖表就好
+// (隱藏中的分頁,對應的DOM容器寬高會是0,這時候resize沒有意義,等使用者切過去看時才重繪)
+function resizeChartsForPage(page) {
+  if (page === "price") {
     priceChart.resize(priceChartEl.clientWidth, priceChartEl.clientHeight);
+  } else if (page === "indicators") {
     rsiChart.resize(rsiChartEl.clientWidth, rsiChartEl.clientHeight);
     instChart.resize(instChartEl.clientWidth, instChartEl.clientHeight);
     marginChart.resize(marginChartEl.clientWidth, marginChartEl.clientHeight);
+  } else if (page === "fundamentals") {
     valuationChart.resize(valuationChartEl.clientWidth, valuationChartEl.clientHeight);
+  }
+}
+
+function setActivePage(page) {
+  currentPage = page;
+  pageGroupEls.forEach((el) => {
+    el.style.display = el.dataset.page === page ? "" : "none";
   });
+  // 分頁切回可見狀態的當下,容器才會有正確的寬高,所以在下一個畫面更新時機再重繪圖表
+  requestAnimationFrame(() => resizeChartsForPage(page));
 }
 
 function syncTimeScales(source, target) {
@@ -304,5 +324,10 @@ async function loadManifestAndInit() {
   }
 }
 
+pageSelectEl.addEventListener("change", () => setActivePage(pageSelectEl.value));
+
 initCharts();
+// 一定要在 initCharts() 之後才切換分頁可見度:
+// 圖表建立當下需要容器有實際寬高,這時候三個分頁都還是可見的,寬高才會正確量到。
+setActivePage("price");
 loadManifestAndInit();

@@ -13,103 +13,119 @@
     <div class="controls">
       <label for="stock-select">股票:</label>
       <select id="stock-select"></select>
+      <label for="page-select">頁面:</label>
+      <select id="page-select">
+        <option value="price">K線 / 走向分析</option>
+        <option value="indicators">技術籌碼指標</option>
+        <option value="fundamentals">基本面統計</option>
+      </select>
       <span id="updated-at" class="updated-at"></span>
     </div>
   </header>
 
   <main>
-    <section class="chart-section">
-      <div class="chart-header">
-        <span>K線 / 均線</span>
-        <div class="ma-legend" id="ma-legend"></div>
-      </div>
-      <div class="price-chart-wrap">
-        <div id="stock-label" class="stock-label"></div>
-        <div id="price-chart" class="chart-box price-chart"></div>
-      </div>
-    </section>
-
-    <section class="chart-section">
-      <div class="chart-header">
-        <span>近期走向分析</span>
-      </div>
-      <p id="trend-narrative" class="trend-narrative"></p>
-
-      <div class="prob-block">
-        <div class="prob-header">
-          <span>隔日漲跌機率(歷史統計)</span>
-          <span id="prob-state-label" class="prob-state-label"></span>
+    <!-- ===== 頁面1: K線 / 走向分析 ===== -->
+    <div class="page-group" data-page="price">
+      <section class="chart-section">
+        <div class="chart-header">
+          <span>K線 / 均線</span>
+          <div class="ma-legend" id="ma-legend"></div>
         </div>
-        <div class="prob-bar-wrap">
-          <div class="prob-bar">
-            <div id="prob-bar-up" class="prob-bar-up"></div>
-            <div id="prob-bar-down" class="prob-bar-down"></div>
+        <div class="price-chart-wrap">
+          <div id="stock-label" class="stock-label"></div>
+          <div id="price-chart" class="chart-box price-chart"></div>
+        </div>
+      </section>
+
+      <section class="chart-section">
+        <div class="chart-header">
+          <span>近期走向分析</span>
+        </div>
+        <p id="trend-narrative" class="trend-narrative"></p>
+
+        <div class="prob-block">
+          <div class="prob-header">
+            <span>隔日漲跌機率(歷史統計)</span>
+            <span id="prob-state-label" class="prob-state-label"></span>
+          </div>
+          <div class="prob-bar-wrap">
+            <div class="prob-bar">
+              <div id="prob-bar-up" class="prob-bar-up"></div>
+              <div id="prob-bar-down" class="prob-bar-down"></div>
+            </div>
+          </div>
+          <div class="prob-legend">
+            <span class="prob-up-text">上漲 <b id="prob-up-pct">-</b>%</span>
+            <span class="prob-down-text">下跌 <b id="prob-down-pct">-</b>%</span>
+            <span id="prob-sample-size" class="prob-sample"></span>
+          </div>
+          <p class="prob-disclaimer">
+            此機率是統計「過去歷史上,技術指標處於相同狀態時隔日實際漲跌的比例」,
+            純粹是歷史迴顧統計,不是機器學習預測,也不保證未來會重演,僅供參考,不構成投資建議。
+          </p>
+        </div>
+      </section>
+    </div>
+
+    <!-- ===== 頁面2: 技術籌碼指標(RSI / 三大法人 / 融資融券) ===== -->
+    <div class="page-group" data-page="indicators">
+      <section class="chart-section">
+        <div class="chart-header">
+          <span>RSI</span>
+        </div>
+        <div id="rsi-chart" class="chart-box rsi-chart"></div>
+      </section>
+
+      <section class="chart-section">
+        <div class="chart-header">
+          <span>三大法人買賣超(張)</span>
+          <div class="legend-static">
+            <span class="dot foreign"></span>外資
+            <span class="dot trust"></span>投信
+            <span class="dot dealer"></span>自營商
           </div>
         </div>
-        <div class="prob-legend">
-          <span class="prob-up-text">上漲 <b id="prob-up-pct">-</b>%</span>
-          <span class="prob-down-text">下跌 <b id="prob-down-pct">-</b>%</span>
-          <span id="prob-sample-size" class="prob-sample"></span>
-        </div>
-        <p class="prob-disclaimer">
-          此機率是統計「過去歷史上,技術指標處於相同狀態時隔日實際漲跌的比例」,
-          純粹是歷史迴顧統計,不是機器學習預測,也不保證未來會重演,僅供參考,不構成投資建議。
-        </p>
-      </div>
-    </section>
+        <div id="institutional-chart" class="chart-box inst-chart"></div>
+      </section>
 
-    <section class="chart-section">
-      <div class="chart-header">
-        <span>RSI</span>
-      </div>
-      <div id="rsi-chart" class="chart-box rsi-chart"></div>
-    </section>
-
-    <section class="chart-section">
-      <div class="chart-header">
-        <span>三大法人買賣超(張)</span>
-        <div class="legend-static">
-          <span class="dot foreign"></span>外資
-          <span class="dot trust"></span>投信
-          <span class="dot dealer"></span>自營商
+      <section class="chart-section">
+        <div class="chart-header">
+          <span>融資融券餘額</span>
+          <div class="legend-static">
+            <span class="dot margin"></span>融資餘額(左軸)
+            <span class="dot short"></span>融券餘額(右軸)
+          </div>
         </div>
-      </div>
-      <div id="institutional-chart" class="chart-box inst-chart"></div>
-    </section>
+        <div id="margin-chart" class="chart-box margin-chart"></div>
+      </section>
+    </div>
 
-    <section class="chart-section">
-      <div class="chart-header">
-        <span>融資融券餘額</span>
-        <div class="legend-static">
-          <span class="dot margin"></span>融資餘額(左軸)
-          <span class="dot short"></span>融券餘額(右軸)
+    <!-- ===== 頁面3: 基本面統計(本益比/淨值比 + 季報表格) ===== -->
+    <div class="page-group" data-page="fundamentals">
+      <section class="chart-section">
+        <div class="chart-header">
+          <span>本益比 / 淨值比</span>
+          <div class="legend-static">
+            <span class="dot per"></span>本益比 PER(左軸)
+            <span class="dot pbr"></span>淨值比 PBR(右軸)
+          </div>
         </div>
-      </div>
-      <div id="margin-chart" class="chart-box margin-chart"></div>
-    </section>
-    <section class="chart-section">
-      <div class="chart-header">
-        <span>本益比 / 淨值比</span>
-        <div class="legend-static">
-          <span class="dot per"></span>本益比 PER(左軸)
-          <span class="dot pbr"></span>淨值比 PBR(右軸)
-        </div>
-      </div>
-      <div id="valuation-chart" class="chart-box valuation-chart"></div>
-    </section>
+        <div id="valuation-chart" class="chart-box valuation-chart"></div>
+      </section>
 
-    <section class="chart-section">
-      <div class="chart-header">
-        <span>基本面(近8季)</span>
-      </div>
-      <div class="fund-table-wrap">
-        <table class="fund-table" id="fund-table">
-          <thead><tr id="fund-table-head"></tr></thead>
-          <tbody id="fund-table-body"></tbody>
-        </table>
-      </div>
-      <p class="fund-note">EPS / 毛利率 / 營益率 / ROE / ROA 為單季數字(非年化);營收與營業現金流單位為億元</p>
-    </section>
+      <section class="chart-section">
+        <div class="chart-header">
+          <span>基本面(近8季)</span>
+        </div>
+        <div class="fund-table-wrap">
+          <table class="fund-table" id="fund-table">
+            <thead><tr id="fund-table-head"></tr></thead>
+            <tbody id="fund-table-body"></tbody>
+          </table>
+        </div>
+        <p class="fund-note">EPS / 毛利率 / 營益率 / ROE / ROA 為單季數字(非年化);營收與營業現金流單位為億元</p>
+      </section>
+    </div>
   </main>
 
   <footer>

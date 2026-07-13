@@ -42,7 +42,8 @@ header h1 {
   color: var(--text-dim);
 }
 
-#stock-select {
+#stock-select,
+#page-select {
   background: var(--panel);
   color: var(--text);
   border: 1px solid var(--border);
@@ -54,6 +55,12 @@ header h1 {
 .updated-at {
   font-size: 12px;
   color: var(--text-dim);
+}
+
+.page-group {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 main {
