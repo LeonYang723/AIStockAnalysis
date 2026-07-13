@@ -6,7 +6,7 @@ FINMIND_API_URL = "https://api.finmindtrade.com/api/v4/data"
 FINMIND_TOKEN = ""
 
 # 想追蹤的股票清單(之後要加股票,改這裡就好)
-STOCK_LIST = ["2330", "2317", "2454"]
+STOCK_LIST = ["2330", "2317", "2454", "3661"]
 
 # 抓取區間:抓近 N 個交易日,避免每次抓全部歷史資料
 LOOKBACK_DAYS = 250
