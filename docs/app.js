@@ -35,6 +35,8 @@ const newsPosCountEl = document.getElementById("news-pos-count");
 const newsNeuCountEl = document.getElementById("news-neu-count");
 const newsNegCountEl = document.getElementById("news-neg-count");
 const newsListEl = document.getElementById("news-list");
+const trackSummaryEl = document.getElementById("track-record-summary");
+const trackBodyEl = document.getElementById("track-record-body");
 
 let manifestStockNames = {};
 let currentPage = "price";
@@ -325,6 +327,46 @@ function renderNews(news) {
   });
 }
 
+function renderTrackRecord(trackRecord) {
+  trackBodyEl.innerHTML = "";
+
+  const resolvedCount = trackRecord?.resolved_count || 0;
+  const correctCount = trackRecord?.correct_count || 0;
+  const accuracyPct = trackRecord?.accuracy_pct;
+
+  if (resolvedCount === 0) {
+    trackSummaryEl.textContent = "目前還沒有累積到任何已驗證的預測記錄,持續運作一段時間後才會開始顯示命中率。";
+  } else {
+    trackSummaryEl.innerHTML =
+      `目前累積 <b>${resolvedCount}</b> 次已知結果的預測,命中 <b>${correctCount}</b> 次,` +
+      `命中率 <b>${accuracyPct}%</b>`;
+  }
+
+  const recent = trackRecord?.recent || [];
+  if (recent.length === 0) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td colspan="5">尚無已驗證的記錄</td>`;
+    trackBodyEl.appendChild(tr);
+    return;
+  }
+
+  const directionText = { up: "漲", down: "跌" };
+  recent.forEach((r) => {
+    const tr = document.createElement("tr");
+    const guessTag = r.correct
+      ? `<span class="track-tag hit">✓ 猜中</span>`
+      : `<span class="track-tag miss">✕ 猜錯</span>`;
+    tr.innerHTML = `
+      <td>${r.predict_date}</td>
+      <td>${directionText[r.predicted_direction] || "-"}</td>
+      <td>${r.target_date || "-"}</td>
+      <td>${directionText[r.actual_direction] || "-"}</td>
+      <td>${guessTag}</td>
+    `;
+    trackBodyEl.appendChild(tr);
+  });
+}
+
 async function loadStock(stockId) {
   const res = await fetch(`data/${stockId}.json?t=${Date.now()}`);
   if (!res.ok) {
@@ -358,6 +400,7 @@ async function loadStock(stockId) {
 
   renderFundamentalsTable(data.fundamentals);
   renderAnalysis(data.analysis);
+  renderTrackRecord(data.analysis?.next_day?.track_record);
   renderNews(data.news);
 
   priceChart.timeScale().fitContent();

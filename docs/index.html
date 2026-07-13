@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI Stock</title>
+<title>台股AI分析</title>
 <link rel="stylesheet" href="style.css">
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 </head>
 <body>
   <header>
-    <h1>AI Stock</h1>
+    <h1>台股技術分析</h1>
     <div class="controls">
       <label for="stock-select">股票:</label>
       <select id="stock-select"></select>
@@ -64,6 +64,25 @@
             此機率是統計「過去歷史上,技術指標處於相同狀態時隔日實際漲跌的比例」,
             純粹是歷史迴顧統計,不是機器學習預測,也不保證未來會重演,僅供參考,不構成投資建議。
           </p>
+
+          <div class="track-record-block">
+            <div class="track-record-header">
+              <span>這個機率過去猜得準不準?(自動追蹤驗證)</span>
+            </div>
+            <p id="track-record-summary" class="track-record-summary"></p>
+            <div class="track-record-table-wrap">
+              <table class="track-record-table">
+                <thead>
+                  <tr><th>預測日</th><th>當時猜</th><th>驗證日</th><th>實際結果</th><th>猜中?</th></tr>
+                </thead>
+                <tbody id="track-record-body"></tbody>
+              </table>
+            </div>
+            <p class="track-record-note">
+              每個交易日網站會自動記錄當天做出的漲跌預測,隔天知道實際結果後自動回頭核對。
+              樣本數還很少的時候,命中率參考價值有限,需要累積較長時間才有統計意義。
+            </p>
+          </div>
         </div>
       </section>
     </div>

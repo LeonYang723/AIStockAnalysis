@@ -261,6 +261,68 @@ main {
   line-height: 1.6;
 }
 
+.track-record-block {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.track-record-header {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+
+.track-record-summary {
+  margin: 0 0 10px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.track-record-summary b {
+  color: var(--accent);
+}
+
+.track-record-table-wrap {
+  overflow-x: auto;
+}
+
+.track-record-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.track-record-table th,
+.track-record-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: center;
+}
+
+.track-record-table thead th {
+  color: var(--text-dim);
+  font-weight: 500;
+  font-size: 12px;
+}
+
+.track-tag {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.track-tag.hit { color: #d6382e; }
+.track-tag.miss { color: #8b8f9a; }
+.track-tag.pending { color: var(--text-dim); }
+
+.track-record-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+
 .news-total {
   font-size: 12px;
   color: var(--text-dim);
