@@ -19,9 +19,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(SCRIPT_DIR)
 
 from config import STOCK_LIST, LOOKBACK_DAYS, RSI_PERIODS, MA_WINDOWS, OUTPUT_DIR
-from data_fetcher import (
-    get_stock_price, get_institutional_investors, get_margin_trading, get_broker_net_trading,
-)
+from data_fetcher import get_stock_price, get_institutional_investors, get_margin_trading
 from indicators import add_moving_averages, add_rsi_columns
 
 OUTPUT_DIR_ABS = os.path.join(REPO_ROOT, OUTPUT_DIR)
@@ -111,31 +109,6 @@ def build_one(stock_id: str, token: str = None) -> dict:
         margin = {k: [] for k in
                   ["margin_balance", "margin_buy", "margin_sell", "short_balance", "short_buy", "short_sell"]}
 
-    # ---------- 主力買賣(券商分點,只有最新交易日的排行榜) ----------
-    try:
-        latest_date = df["date"].max().strftime("%Y-%m-%d")
-        broker_df = get_broker_net_trading(stock_id, latest_date, token=token)
-
-        # 換算成「張」,並取前5買超、前5賣超
-        broker_df["net_lots"] = (broker_df["net"] / 1000).round().astype(int)
-        top_buy = broker_df.head(5)
-        top_sell = broker_df.tail(5).sort_values("net_lots")
-
-        main_force = {
-            "date": latest_date,
-            "top_buy": [
-                {"trader": row["securities_trader"], "net": int(row["net_lots"])}
-                for _, row in top_buy.iterrows()
-            ],
-            "top_sell": [
-                {"trader": row["securities_trader"], "net": int(row["net_lots"])}
-                for _, row in top_sell.iterrows()
-            ],
-        }
-    except Exception as e:
-        print(f"  主力買賣資料抓取失敗({stock_id}): {e}")
-        main_force = {"date": None, "top_buy": [], "top_sell": []}
-
     return {
         "stock_id": stock_id,
         "updated_at": datetime.now().isoformat(),
@@ -145,7 +118,6 @@ def build_one(stock_id: str, token: str = None) -> dict:
         "rsi": rsi_series,
         "institutional": institutional,
         "margin": margin,
-        "main_force": main_force,
     }
 
 
