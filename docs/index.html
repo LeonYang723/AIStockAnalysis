@@ -17,7 +17,8 @@
       <select id="page-select">
         <option value="overview">總覽</option>
         <option value="compare">多股比較</option>
-        <option value="price">K線 / 走向分析</option>
+        <option value="price">K線</option>
+        <option value="trend">走向分析</option>
         <option value="indicators">技術籌碼指標</option>
         <option value="fundamentals">基本面統計</option>
         <option value="news">財經新聞</option>
@@ -121,7 +122,7 @@
       </section>
     </div>
 
-    <!-- ===== 頁面1: K線 / 走向分析 ===== -->
+    <!-- ===== 頁面1: K線 ===== -->
     <div class="page-group" data-page="price">
       <section class="chart-section">
         <div class="chart-header">
@@ -133,7 +134,10 @@
           <div id="price-chart" class="chart-box price-chart"></div>
         </div>
       </section>
+    </div>
 
+    <!-- ===== 頁面1.5: 走向分析(統計法 + ML模型,各自獨立追蹤命中率) ===== -->
+    <div class="page-group" data-page="trend">
       <section class="chart-section">
         <div class="chart-header">
           <span>近期走向分析</span>
@@ -202,6 +206,24 @@
             兩邊各自累積實際命中率,可以互相比較誰比較準。股價短期漲跌非常接近隨機,
             任何方法的長期準確率通常都在50%上下,此為實驗性功能,僅供參考,不構成投資建議。
           </p>
+
+          <div class="track-record-block">
+            <div class="track-record-header">
+              <span>這個模型過去猜得準不準?(自動追蹤驗證)</span>
+            </div>
+            <p id="ml-track-summary" class="track-record-summary"></p>
+            <div class="track-record-table-wrap">
+              <table class="track-record-table">
+                <thead>
+                  <tr><th>預測日</th><th>當時猜</th><th>驗證日</th><th>實際結果</th><th>猜中?</th></tr>
+                </thead>
+                <tbody id="ml-track-body"></tbody>
+              </table>
+            </div>
+            <p class="track-record-note">
+              跟上面統計法用同一套自動核對機制,但這是兩個完全獨立的紀錄,方便互相比較準確率。
+            </p>
+          </div>
         </div>
       </section>
     </div>
