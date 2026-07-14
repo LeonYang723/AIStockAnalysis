@@ -180,6 +180,29 @@
             </p>
           </div>
         </div>
+
+        <div class="prob-block">
+          <div class="prob-header">
+            <span>隔日漲跌機率(機器學習模型 · 實驗性)</span>
+            <span id="ml-state-label" class="prob-state-label"></span>
+          </div>
+          <div class="prob-bar-wrap">
+            <div class="prob-bar">
+              <div id="ml-bar-up" class="prob-bar-up"></div>
+              <div id="ml-bar-down" class="prob-bar-down"></div>
+            </div>
+          </div>
+          <div class="prob-legend">
+            <span class="prob-up-text">上漲 <b id="ml-up-pct">-</b>%</span>
+            <span class="prob-down-text">下跌 <b id="ml-down-pct">-</b>%</span>
+            <span id="ml-track-inline" class="prob-sample"></span>
+          </div>
+          <p class="prob-disclaimer">
+            這是用近5年的股價/技術指標訓練的邏輯迴歸模型,跟上面的歷史統計法是兩種獨立的方法,
+            兩邊各自累積實際命中率,可以互相比較誰比較準。股價短期漲跌非常接近隨機,
+            任何方法的長期準確率通常都在50%上下,此為實驗性功能,僅供參考,不構成投資建議。
+          </p>
+        </div>
       </section>
     </div>
 

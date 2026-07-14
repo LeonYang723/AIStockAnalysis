@@ -37,6 +37,12 @@ const newsNegCountEl = document.getElementById("news-neg-count");
 const newsListEl = document.getElementById("news-list");
 const trackSummaryEl = document.getElementById("track-record-summary");
 const trackBodyEl = document.getElementById("track-record-body");
+const mlStateLabelEl = document.getElementById("ml-state-label");
+const mlBarUpEl = document.getElementById("ml-bar-up");
+const mlBarDownEl = document.getElementById("ml-bar-down");
+const mlUpPctEl = document.getElementById("ml-up-pct");
+const mlDownPctEl = document.getElementById("ml-down-pct");
+const mlTrackInlineEl = document.getElementById("ml-track-inline");
 const instAnomalyBadgesEl = document.getElementById("inst-anomaly-badges");
 const overviewStockTitleEl = document.getElementById("overview-stock-title");
 const overviewUpdatedEl = document.getElementById("overview-updated");
@@ -583,6 +589,32 @@ async function loadCompareTable(force = false) {
   compareDataLoaded = true;
 }
 
+function renderMlPrediction(mlNextDay) {
+  if (!mlNextDay || mlNextDay.up_pct === null || mlNextDay.up_pct === undefined) {
+    mlStateLabelEl.textContent = mlNextDay?.state_label || "資料不足";
+    mlBarUpEl.style.width = "50%";
+    mlBarDownEl.style.width = "50%";
+    mlUpPctEl.textContent = "-";
+    mlDownPctEl.textContent = "-";
+    mlTrackInlineEl.textContent = "";
+    return;
+  }
+
+  mlStateLabelEl.textContent = mlNextDay.state_label || "";
+  mlBarUpEl.style.width = `${mlNextDay.up_pct}%`;
+  mlBarDownEl.style.width = `${mlNextDay.down_pct}%`;
+  mlUpPctEl.textContent = mlNextDay.up_pct;
+  mlDownPctEl.textContent = mlNextDay.down_pct;
+
+  const tr = mlNextDay.track_record;
+  if (tr && tr.resolved_count > 0) {
+    mlTrackInlineEl.textContent =
+      `實際命中率: ${tr.accuracy_pct}%(已驗證${tr.resolved_count}次,命中${tr.correct_count}次)`;
+  } else {
+    mlTrackInlineEl.textContent = "實際命中率: 尚未累積已驗證的記錄";
+  }
+}
+
 async function loadStock(stockId) {
   const res = await fetch(`data/${stockId}.json?t=${Date.now()}`);
   if (!res.ok) {
@@ -618,6 +650,7 @@ async function loadStock(stockId) {
   renderFundamentalsTable(data.fundamentals);
   renderAnalysis(data.analysis);
   renderTrackRecord(data.analysis?.next_day?.track_record);
+  renderMlPrediction(data.analysis?.next_day_ml);
   renderNews(data.news);
   renderOverview(data);
 
