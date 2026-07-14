@@ -1,0 +1,1 @@
+[{"predict_date": "2026-07-14", "predicted_direction": "up", "up_pct": 51.2, "down_pct": 48.8, "state_label": "邏輯迴歸 · 訓練樣本1153天 · 近60天回測準確率45.0%", "target_date": null, "actual_direction": null, "correct": null, "resolved": false}]
