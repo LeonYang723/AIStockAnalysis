@@ -109,6 +109,14 @@ def train_and_predict(df: pd.DataFrame, inst_df: pd.DataFrame = None, market_df:
     回傳格式與統計法一致(up_pct/down_pct/state_label),可以直接餵給 prediction_tracker。
     """
     feat = build_features(df, inst_df=inst_df, market_df=market_df)
+
+    # 診斷log: 確認三大法人/大盤資料有沒有真的餵進來,以及目前用了哪些特徵欄位
+    has_inst = inst_df is not None and not inst_df.empty
+    has_market = market_df is not None and not market_df.empty
+    print(f"    [ML特徵] 三大法人資料: {'有帶入' if has_inst else '缺失,用0頂替'}"
+          f" | 大盤資料: {'有帶入' if has_market else '缺失,用0頂替'}")
+    print(f"    [ML特徵] 共 {len(feat.columns)} 個特徵: {list(feat.columns)}")
+
     target = (df["close"].shift(-1) > df["close"]).astype(float)
     target[df["close"].shift(-1).isna()] = np.nan  # 最新一天沒有「明天」,不能當訓練樣本
 
