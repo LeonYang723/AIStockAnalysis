@@ -30,6 +30,7 @@ from data_fetcher import (
 )
 from indicators import add_moving_averages, add_rsi_columns
 from analysis import generate_trend_narrative, compute_next_day_probability, compute_streak, get_latest_state
+from ml_model import train_and_predict as ml_train_and_predict
 from news_analysis import summarize_news
 from prediction_tracker import load_log, save_log, resolve_pending, add_new_prediction, compute_track_record
 
@@ -131,7 +132,32 @@ def build_one(stock_id: str, token: str = None, stock_name: str = None) -> dict:
                          "accuracy_pct": None, "recent": []}
 
     next_day["track_record"] = track_record
-    analysis = {"narrative": narrative, "next_day": next_day}
+
+    # ---------- 機器學習模型預測(實驗性,與統計法並存、各自追蹤命中率) ----------
+    try:
+        ml_next_day = ml_train_and_predict(full_df)
+    except Exception as e:
+        print(f"  ML模型預測失敗({stock_id}): {e}")
+        ml_next_day = {"up_pct": None, "down_pct": None, "sample_size": 0,
+                        "state_label": "模型訓練失敗或資料不足"}
+
+    try:
+        ml_log_path = os.path.join(OUTPUT_DIR_ABS, f"{stock_id}_predictions_ml.json")
+        ml_log = load_log(ml_log_path)
+        ml_log = resolve_pending(ml_log, full_df[["date", "close"]])
+
+        latest_date_str = full_df["date"].max().strftime("%Y-%m-%d")
+        ml_log = add_new_prediction(ml_log, latest_date_str, ml_next_day)
+
+        save_log(ml_log_path, ml_log)
+        ml_track_record = compute_track_record(ml_log)
+    except Exception as e:
+        print(f"  ML預測準確率追蹤失敗({stock_id}): {e}")
+        ml_track_record = {"total_predictions": 0, "resolved_count": 0, "correct_count": 0,
+                            "accuracy_pct": None, "recent": []}
+
+    ml_next_day["track_record"] = ml_track_record
+    analysis = {"narrative": narrative, "next_day": next_day, "next_day_ml": ml_next_day}
 
     # ---------- 三大法人 ----------
     try:
