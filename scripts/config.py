@@ -6,7 +6,7 @@ FINMIND_API_URL = "https://api.finmindtrade.com/api/v4/data"
 FINMIND_TOKEN = ""
 
 # 想追蹤的股票清單(之後要加股票,改這裡就好)
-STOCK_LIST = ["2330", "2317", "2454", "3037", "3026", "8299"]
+STOCK_LIST = ["2330", "2317", "2454"]
 
 # 抓取區間:抓近 N 個交易日,避免每次抓全部歷史資料
 LOOKBACK_DAYS = 250
@@ -26,8 +26,13 @@ ANALYSIS_LOOKBACK_YEARS = 5
 # 同一種技術狀態的歷史樣本數至少要達到這個數字,統計才算可信,不夠會自動退回較寬鬆的分類
 ANALYSIS_MIN_SAMPLE = 20
 
-# 財經新聞要抓近幾天,以及最多保留幾篇(避免JSON檔案太大)
-NEWS_LOOKBACK_DAYS = 14
+# 財經新聞要抓近幾天
+NEWS_LOOKBACK_DAYS = 7
+
+# 當天(最新一天)最多保留幾篇新聞(用時間新舊當作「熱門」的代理指標)
+NEWS_TODAY_MAX_ARTICLES = 10
+
+# 全部新聞最多保留幾篇(當天10篇 + 其餘幾天平均分配剩下的扣打)
 NEWS_MAX_ARTICLES = 30
 
 # 「隔日漲跌機率」預測準確率追蹤,最多保留幾筆歷史紀錄(每個交易日累積一筆)
