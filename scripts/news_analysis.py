@@ -55,9 +55,45 @@ def classify_news_title(title: str) -> dict:
     return {"sentiment": sentiment, "positive_hits": positive_hits, "negative_hits": negative_hits}
 
 
-def summarize_news(df: pd.DataFrame, max_articles: int = 30) -> dict:
+def select_balanced_articles(df: pd.DataFrame, today_max: int, total_max: int) -> pd.DataFrame:
+    """
+    從新聞資料裡挑選要顯示的篇數,採用「當天優先、其餘平均分配」邏輯:
+      1. 最新一天(通常是今天)最多保留 today_max 篇(依時間新舊排序,當作熱門度的代理指標)
+      2. 剩餘扣打(total_max - 當天實際篇數)平均分配給其餘各天,
+         分配不整除時,前面幾天多分1篇,盡量不浪費扣打。
+
+    df 需有 date 欄位(datetime),且已經依日期新到舊排序。
+    """
+    if df.empty:
+        return df
+
+    df = df.copy()
+    df["_day"] = df["date"].dt.date
+    days = list(dict.fromkeys(df["_day"]))  # 保留原本新到舊的順序,同時去重
+    latest_day = days[0]
+    other_days = days[1:]
+
+    latest_group = df[df["_day"] == latest_day].head(today_max)
+    remaining_budget = max(total_max - len(latest_group), 0)
+
+    selected_parts = [latest_group]
+    if other_days and remaining_budget > 0:
+        per_day_quota = remaining_budget // len(other_days)
+        extra = remaining_budget % len(other_days)
+        for i, day in enumerate(other_days):
+            quota = per_day_quota + (1 if i < extra else 0)
+            if quota <= 0:
+                continue
+            selected_parts.append(df[df["_day"] == day].head(quota))
+
+    result = pd.concat(selected_parts).sort_values("date", ascending=False).reset_index(drop=True)
+    return result.drop(columns=["_day"])
+
+
+def summarize_news(df: pd.DataFrame, max_articles: int = 30, today_max_articles: int = 10) -> dict:
     """
     對一批新聞(需有 date/title/source/link 欄位)做關鍵字比對統計。
+    篩選規則: 最新一天最多 today_max_articles 篇,其餘平均分配剩下的扣打。
     回傳:
     {
       "total": 總篇數,
@@ -70,7 +106,7 @@ def summarize_news(df: pd.DataFrame, max_articles: int = 30) -> dict:
     negative_count = 0
     neutral_count = 0
 
-    subset = df.head(max_articles)
+    subset = select_balanced_articles(df, today_max=today_max_articles, total_max=max_articles)
     for _, row in subset.iterrows():
         result = classify_news_title(row["title"])
         sentiment = result["sentiment"]

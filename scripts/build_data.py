@@ -12,6 +12,7 @@ import sys
 import os
 import json
 import math
+import pandas as pd
 from datetime import datetime, timedelta
 
 # 確保無論從哪個目錄執行,都能正確定位到 repo 根目錄下的 docs/data
@@ -20,13 +21,13 @@ REPO_ROOT = os.path.dirname(SCRIPT_DIR)
 
 from config import (
     STOCK_LIST, LOOKBACK_DAYS, RSI_PERIODS, MA_WINDOWS, FUNDAMENTALS_QUARTERS,
-    ANALYSIS_LOOKBACK_YEARS, NEWS_LOOKBACK_DAYS, NEWS_MAX_ARTICLES,
+    ANALYSIS_LOOKBACK_YEARS, NEWS_LOOKBACK_DAYS, NEWS_MAX_ARTICLES, NEWS_TODAY_MAX_ARTICLES,
     ANOMALY_STREAK_THRESHOLD, OUTPUT_DIR,
 )
 from data_fetcher import (
     get_stock_price, get_institutional_investors, get_margin_trading,
     get_valuation_ratios, get_financial_statements, get_balance_sheet, get_cash_flow,
-    get_stock_names, get_stock_news,
+    get_stock_names, get_stock_news, get_market_index,
 )
 from indicators import add_moving_averages, add_rsi_columns
 from analysis import generate_trend_narrative, compute_next_day_probability, compute_streak, get_latest_state
@@ -58,7 +59,7 @@ def _series_from_df(df, value_cols: list) -> dict:
     return series
 
 
-def build_one(stock_id: str, token: str = None, stock_name: str = None) -> dict:
+def build_one(stock_id: str, token: str = None, stock_name: str = None, market_df: pd.DataFrame = None) -> dict:
     end_date = datetime.today().strftime("%Y-%m-%d")
 
     # 「隔日漲跌機率」的統計需要比較長的歷史資料才夠可靠,
@@ -101,6 +102,29 @@ def build_one(stock_id: str, token: str = None, stock_name: str = None) -> dict:
             if v is not None:
                 rsi_series[f"RSI{p}"].append({"time": t, "value": v})
 
+    # ---------- 三大法人(改抓長版5年歷史,同時給ML模型訓練用+畫面顯示用) ----------
+    try:
+        inst_full_df = get_institutional_investors(stock_id, analysis_start_date, end_date, token=token)
+        # 原始資料單位是「股」,換算成「張」(1張=1000股)較符合台股看盤習慣
+        for col in ["foreign_net", "trust_net", "dealer_net", "total_net"]:
+            inst_full_df[col] = (inst_full_df[col] / 1000).round().astype(int)
+
+        # 畫面顯示只需要跟股價圖一樣的短區間
+        inst_df = inst_full_df[inst_full_df["date"] >= df["date"].min()].reset_index(drop=True)
+        institutional = _series_from_df(inst_df, ["foreign_net", "trust_net", "dealer_net", "total_net"])
+
+        # 連續買超/賣超天數異常標記(只有連續天數達到門檻才會列入,前端才會顯示徽章)
+        anomalies = {}
+        for key, label in [("foreign_net", "foreign"), ("trust_net", "trust"), ("dealer_net", "dealer")]:
+            streak_info = compute_streak(inst_df[key].tolist())
+            if streak_info["streak"] >= ANOMALY_STREAK_THRESHOLD:
+                anomalies[label] = streak_info
+        institutional["anomalies"] = anomalies
+    except Exception as e:
+        print(f"  三大法人資料抓取失敗({stock_id}): {e}")
+        institutional = {"foreign_net": [], "trust_net": [], "dealer_net": [], "total_net": [], "anomalies": {}}
+        inst_full_df = None
+
     # ---------- 近期走向分析 + 隔日漲跌機率(用 full_df 完整歷史資料統計) ----------
     try:
         narrative = generate_trend_narrative(full_df)
@@ -135,7 +159,7 @@ def build_one(stock_id: str, token: str = None, stock_name: str = None) -> dict:
 
     # ---------- 機器學習模型預測(實驗性,與統計法並存、各自追蹤命中率) ----------
     try:
-        ml_next_day = ml_train_and_predict(full_df)
+        ml_next_day = ml_train_and_predict(full_df, inst_df=inst_full_df, market_df=market_df)
     except Exception as e:
         print(f"  ML模型預測失敗({stock_id}): {e}")
         ml_next_day = {"up_pct": None, "down_pct": None, "sample_size": 0,
@@ -158,26 +182,6 @@ def build_one(stock_id: str, token: str = None, stock_name: str = None) -> dict:
 
     ml_next_day["track_record"] = ml_track_record
     analysis = {"narrative": narrative, "next_day": next_day, "next_day_ml": ml_next_day}
-
-    # ---------- 三大法人 ----------
-    try:
-        inst_df = get_institutional_investors(stock_id, start_date, end_date, token=token)
-        inst_df = inst_df[inst_df["date"] >= df["date"].min()].reset_index(drop=True)
-        # 原始資料單位是「股」,換算成「張」(1張=1000股)較符合台股看盤習慣
-        for col in ["foreign_net", "trust_net", "dealer_net", "total_net"]:
-            inst_df[col] = (inst_df[col] / 1000).round().astype(int)
-        institutional = _series_from_df(inst_df, ["foreign_net", "trust_net", "dealer_net", "total_net"])
-
-        # 連續買超/賣超天數異常標記(只有連續天數達到門檻才會列入,前端才會顯示徽章)
-        anomalies = {}
-        for key, label in [("foreign_net", "foreign"), ("trust_net", "trust"), ("dealer_net", "dealer")]:
-            streak_info = compute_streak(inst_df[key].tolist())
-            if streak_info["streak"] >= ANOMALY_STREAK_THRESHOLD:
-                anomalies[label] = streak_info
-        institutional["anomalies"] = anomalies
-    except Exception as e:
-        print(f"  三大法人資料抓取失敗({stock_id}): {e}")
-        institutional = {"foreign_net": [], "trust_net": [], "dealer_net": [], "total_net": [], "anomalies": {}}
 
     # ---------- 融資融券 ----------
     try:
@@ -243,7 +247,7 @@ def build_one(stock_id: str, token: str = None, stock_name: str = None) -> dict:
         news_end_date = end_date
         news_start_date = (datetime.today() - timedelta(days=NEWS_LOOKBACK_DAYS)).strftime("%Y-%m-%d")
         news_df = get_stock_news(stock_id, news_start_date, news_end_date, token=token)
-        news = summarize_news(news_df, max_articles=NEWS_MAX_ARTICLES)
+        news = summarize_news(news_df, max_articles=NEWS_MAX_ARTICLES, today_max_articles=NEWS_TODAY_MAX_ARTICLES)
     except Exception as e:
         print(f"  財經新聞資料抓取失敗({stock_id}): {e}")
         news = {"total": 0, "positive_count": 0, "negative_count": 0, "neutral_count": 0, "articles": []}
@@ -315,6 +319,16 @@ def main():
         print(f"股票名稱對照表抓取失敗: {e}")
         name_map = {}
 
+    # 大盤加權指數不分股票,只需要抓一次,給所有股票的ML模型共用當特徵
+    try:
+        market_start_date = (datetime.today() - timedelta(days=int(ANALYSIS_LOOKBACK_YEARS * 365))).strftime("%Y-%m-%d")
+        market_end_date = datetime.today().strftime("%Y-%m-%d")
+        market_df = get_market_index(market_start_date, market_end_date, token=token)
+        print(f"已取得大盤加權指數,共 {len(market_df)} 筆")
+    except Exception as e:
+        print(f"大盤加權指數抓取失敗(ML模型會少一組特徵,不影響其他功能): {e}")
+        market_df = None
+
     manifest = []
     manifest_names = {}
 
@@ -322,7 +336,7 @@ def main():
         print(f"抓取並計算 {stock_id} ...")
         stock_name = name_map.get(stock_id)
         try:
-            data = build_one(stock_id, token=token, stock_name=stock_name)
+            data = build_one(stock_id, token=token, stock_name=stock_name, market_df=market_df)
         except Exception as e:
             print(f"  跳過 {stock_id},失敗原因: {e}")
             continue

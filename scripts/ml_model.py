@@ -32,14 +32,19 @@ BACKTEST_DAYS = 60
 MIN_TRAIN_SAMPLES = 200
 
 
-def build_features(df: pd.DataFrame) -> pd.DataFrame:
+def build_features(df: pd.DataFrame, inst_df: pd.DataFrame = None, market_df: pd.DataFrame = None) -> pd.DataFrame:
     """
     從既有的股價資料(close/volume/MA/RSI欄位)衍生模型特徵。
     所有特徵都只用「當天以前」的資訊,不能摻入任何未來資料。
+
+    inst_df: 三大法人買賣超(需有 date, foreign_net, trust_net, dealer_net 欄位,單位:張)
+    market_df: 大盤加權指數(需有 date, market_close 欄位)
+    這兩個都是可選的,沒有給的話就只用股價衍生的特徵(不會報錯,只是少幾個特徵)。
     """
     feat = pd.DataFrame(index=df.index)
     close = df["close"]
     volume = df["volume"]
+    dates = df["date"]
 
     # 動能: 近1/5/20日報酬率
     feat["ret_1"] = close.pct_change(1)
@@ -63,17 +68,47 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     vol_ma20 = volume.rolling(20).mean()
     feat["vol_ratio"] = volume / vol_ma20
 
+    # ---- 三大法人買賣超(用日期對齊合併,缺值當作0,即沒有明顯買賣動作) ----
+    if inst_df is not None and not inst_df.empty:
+        inst_lookup = inst_df.drop_duplicates("date").set_index("date")[["foreign_net", "trust_net", "dealer_net"]]
+        inst_aligned = inst_lookup.reindex(dates.values)
+        feat["foreign_net"] = inst_aligned["foreign_net"].fillna(0).values
+        feat["trust_net"] = inst_aligned["trust_net"].fillna(0).values
+        feat["dealer_net"] = inst_aligned["dealer_net"].fillna(0).values
+    else:
+        feat["foreign_net"] = 0.0
+        feat["trust_net"] = 0.0
+        feat["dealer_net"] = 0.0
+
+    # ---- 大盤同期漲跌(個股常常只是跟著大盤走,這個特徵用來抓「相對大盤」的訊號) ----
+    if market_df is not None and not market_df.empty:
+        market_sorted = market_df.sort_values("date").drop_duplicates("date").copy()
+        market_sorted["market_ret_1"] = market_sorted["market_close"].pct_change(1)
+        market_sorted["market_ret_5"] = market_sorted["market_close"].pct_change(5)
+        market_lookup = market_sorted.set_index("date")[["market_ret_1", "market_ret_5"]]
+        market_aligned = market_lookup.reindex(dates.values)
+        feat["market_ret_1"] = market_aligned["market_ret_1"].values
+        feat["market_ret_5"] = market_aligned["market_ret_5"].values
+    else:
+        feat["market_ret_1"] = 0.0
+        feat["market_ret_5"] = 0.0
+
+    # 除法算出來的特徵(乖離率、量比、報酬率)如果分母剛好是0,會產生inf而不是NaN,
+    # sklearn看到inf會直接報錯崩潰,這裡統一轉成NaN,才能被後面的dropna()正常濾掉
+    feat = feat.replace([np.inf, -np.inf], np.nan)
+
     return feat
 
 
-def train_and_predict(df: pd.DataFrame) -> dict:
+def train_and_predict(df: pd.DataFrame, inst_df: pd.DataFrame = None, market_df: pd.DataFrame = None) -> dict:
     """
     訓練模型並預測「最新一個交易日的隔天」漲跌機率。
     df 需含欄位: date, close, volume, MA5, MA20, MA60, RSI6, RSI14,由舊到新排序。
+    inst_df/market_df: 見 build_features() 說明,可選。
 
     回傳格式與統計法一致(up_pct/down_pct/state_label),可以直接餵給 prediction_tracker。
     """
-    feat = build_features(df)
+    feat = build_features(df, inst_df=inst_df, market_df=market_df)
     target = (df["close"].shift(-1) > df["close"]).astype(float)
     target[df["close"].shift(-1).isna()] = np.nan  # 最新一天沒有「明天」,不能當訓練樣本
 

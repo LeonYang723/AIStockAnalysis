@@ -248,13 +248,17 @@ def get_stock_news(stock_id: str, start_date: str, end_date: str, token: str = N
             params["token"] = use_token
 
         try:
-            resp = requests.get(FINMIND_API_URL, params=params, timeout=20)
+            resp = requests.get(FINMIND_API_URL, params=params, timeout=25)
             resp.raise_for_status()
             payload = resp.json()
             if payload.get("status") == 200 and payload.get("data"):
                 frames.append(pd.DataFrame(payload["data"]))
-        except Exception:
-            # 單一天抓取失敗就跳過,不要讓整批新聞抓取因為某一天出錯而全部失敗
+            elif payload.get("status") != 200:
+                print(f"    [新聞] {stock_id} {d_str} 該日查詢失敗: {payload.get('msg')}")
+        except Exception as e:
+            # 單一天抓取失敗就跳過,不要讓整批新聞抓取因為某一天出錯而全部失敗,
+            # 但要印出來,不然像2330這種新聞量大的熱門股如果常態性某幾天失敗會很難察覺
+            print(f"    [新聞] {stock_id} {d_str} 該日查詢例外: {e}")
             continue
 
     if not frames:
@@ -266,6 +270,22 @@ def get_stock_news(stock_id: str, start_date: str, end_date: str, token: str = N
     # 同一則新聞有時會重複出現,依標題+連結去重
     df = df.drop_duplicates(subset=["title", "link"], keep="first")
     return df[["date", "title", "source", "link"]]
+
+
+def get_market_index(start_date: str, end_date: str, token: str = None) -> pd.DataFrame:
+    """
+    取得台股加權指數(大盤)的每日收盤資料,給ML模型當作「同期大盤漲跌」特徵用。
+    跟個股股價共用同一個資料集(TaiwanStockPrice),只是 data_id 換成 TAIEX。
+
+    這個不是股票特有的資料,只需要抓一次,给所有股票的模型共用。
+
+    回傳欄位: date, market_close
+    """
+    df = _fetch("TaiwanStockPrice", "TAIEX", start_date, end_date, token)
+    df["date"] = pd.to_datetime(df["date"])
+    df = df.sort_values("date").reset_index(drop=True)
+    df = df.rename(columns={"close": "market_close"})
+    return df[["date", "market_close"]]
 
 # 註: 曾嘗試加入「主力買賣(券商分點)」功能,對應 FinMind 的
 # TaiwanStockTradingDailyReport 資料集,但該資料集是付費 Sponsor 方案專屬,
