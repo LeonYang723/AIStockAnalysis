@@ -43,6 +43,8 @@ const mlBarDownEl = document.getElementById("ml-bar-down");
 const mlUpPctEl = document.getElementById("ml-up-pct");
 const mlDownPctEl = document.getElementById("ml-down-pct");
 const mlTrackInlineEl = document.getElementById("ml-track-inline");
+const mlTrackSummaryEl = document.getElementById("ml-track-summary");
+const mlTrackBodyEl = document.getElementById("ml-track-body");
 const instAnomalyBadgesEl = document.getElementById("inst-anomaly-badges");
 const overviewStockTitleEl = document.getElementById("overview-stock-title");
 const overviewUpdatedEl = document.getElementById("overview-updated");
@@ -358,17 +360,17 @@ function renderNews(news) {
   });
 }
 
-function renderTrackRecord(trackRecord) {
-  trackBodyEl.innerHTML = "";
+function renderTrackRecordGeneric(trackRecord, summaryEl, bodyEl) {
+  bodyEl.innerHTML = "";
 
   const resolvedCount = trackRecord?.resolved_count || 0;
   const correctCount = trackRecord?.correct_count || 0;
   const accuracyPct = trackRecord?.accuracy_pct;
 
   if (resolvedCount === 0) {
-    trackSummaryEl.textContent = "目前還沒有累積到任何已驗證的預測記錄,持續運作一段時間後才會開始顯示命中率。";
+    summaryEl.textContent = "目前還沒有累積到任何已驗證的預測記錄,持續運作一段時間後才會開始顯示命中率。";
   } else {
-    trackSummaryEl.innerHTML =
+    summaryEl.innerHTML =
       `目前累積 <b>${resolvedCount}</b> 次已知結果的預測,命中 <b>${correctCount}</b> 次,` +
       `命中率 <b>${accuracyPct}%</b>`;
   }
@@ -377,7 +379,7 @@ function renderTrackRecord(trackRecord) {
   if (recent.length === 0) {
     const tr = document.createElement("tr");
     tr.innerHTML = `<td colspan="5">尚無已驗證的記錄</td>`;
-    trackBodyEl.appendChild(tr);
+    bodyEl.appendChild(tr);
     return;
   }
 
@@ -394,8 +396,12 @@ function renderTrackRecord(trackRecord) {
       <td>${directionText[r.actual_direction] || "-"}</td>
       <td>${guessTag}</td>
     `;
-    trackBodyEl.appendChild(tr);
+    bodyEl.appendChild(tr);
   });
+}
+
+function renderTrackRecord(trackRecord) {
+  renderTrackRecordGeneric(trackRecord, trackSummaryEl, trackBodyEl);
 }
 
 const ANOMALY_LABEL_MAP = { foreign: "外資", trust: "投信", dealer: "自營商" };
@@ -597,6 +603,7 @@ function renderMlPrediction(mlNextDay) {
     mlUpPctEl.textContent = "-";
     mlDownPctEl.textContent = "-";
     mlTrackInlineEl.textContent = "";
+    renderTrackRecordGeneric(mlNextDay?.track_record, mlTrackSummaryEl, mlTrackBodyEl);
     return;
   }
 
@@ -613,6 +620,8 @@ function renderMlPrediction(mlNextDay) {
   } else {
     mlTrackInlineEl.textContent = "實際命中率: 尚未累積已驗證的記錄";
   }
+
+  renderTrackRecordGeneric(tr, mlTrackSummaryEl, mlTrackBodyEl);
 }
 
 async function loadStock(stockId) {
