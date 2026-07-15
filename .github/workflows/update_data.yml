@@ -2,12 +2,7 @@ name: Update Stock Data
 
 on:
   schedule:
-    # 台灣時間 14:00 (UTC 06:00),收盤後第一次更新
-    - cron: "0 6 * * 1-5"
-    # 台灣時間 22:00 (UTC 14:00),第二次更新(可以補到當天較晚公布的新聞/籌碼資料)
-    - cron: "0 14 * * 1-5"
-    # 台灣時間 23:00 (UTC 15:00),第三次更新
-    - cron: "0 15 * * 1-5"
+     - cron: "*/5 * * * *"
   workflow_dispatch: {}   # 允許手動在GitHub網頁上點按鈕觸發
 
 permissions:
