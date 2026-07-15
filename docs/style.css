@@ -146,6 +146,7 @@ main {
 .inst-chart { height: 200px; }
 .margin-chart { height: 200px; }
 .valuation-chart { height: 200px; }
+.sentiment-chart { height: 180px; }
 
 .fund-table-wrap {
   overflow-x: auto;

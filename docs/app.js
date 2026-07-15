@@ -35,6 +35,9 @@ const newsPosCountEl = document.getElementById("news-pos-count");
 const newsNeuCountEl = document.getElementById("news-neu-count");
 const newsNegCountEl = document.getElementById("news-neg-count");
 const newsListEl = document.getElementById("news-list");
+const sentimentChartEl = document.getElementById("sentiment-chart");
+const sentimentHistoryTotalEl = document.getElementById("sentiment-history-total");
+let sentimentChart, sentimentSeries;
 const trackSummaryEl = document.getElementById("track-record-summary");
 const trackBodyEl = document.getElementById("track-record-body");
 const mlStateLabelEl = document.getElementById("ml-state-label");
@@ -161,6 +164,17 @@ function initCharts() {
     color: "#ff6fa5", lineWidth: 1.5, priceScaleId: "right",
   });
 
+  // ---------- 新聞情緒趨勢圖(獨立圖表,累積速度跟股價資料完全不同,不加入同步群組) ----------
+  sentimentChart = LightweightCharts.createChart(sentimentChartEl, {
+    ...chartBaseOptions(),
+    width: sentimentChartEl.clientWidth,
+    height: sentimentChartEl.clientHeight,
+  });
+  sentimentSeries = sentimentChart.addLineSeries({
+    color: "#4d8dff", lineWidth: 1.5,
+    autoscaleInfoProvider: () => ({ priceRange: { minValue: -1, maxValue: 1 } }),
+  });
+
   // 五張日資料圖的時間軸互相同步(基本面表格是季資料,不在此同步群組內)
   const syncGroup = [priceChart, rsiChart, instChart, marginChart, valuationChart];
   syncGroup.forEach((source) => {
@@ -183,6 +197,8 @@ function resizeChartsForPage(page) {
     marginChart.resize(marginChartEl.clientWidth, marginChartEl.clientHeight);
   } else if (page === "fundamentals") {
     valuationChart.resize(valuationChartEl.clientWidth, valuationChartEl.clientHeight);
+  } else if (page === "news") {
+    sentimentChart.resize(sentimentChartEl.clientWidth, sentimentChartEl.clientHeight);
   }
 }
 
@@ -303,6 +319,20 @@ function renderAnalysis(analysis) {
 }
 
 const SENTIMENT_TAG_CLASS = { "利多": "pos", "利空": "neg", "中性": "neu" };
+
+function renderSentimentHistory(news) {
+  const history = news?.sentiment_history || [];
+  const total = news?.sentiment_history_total || 0;
+
+  sentimentHistoryTotalEl.textContent = `已累積 ${total} 個交易日`;
+
+  const points = history
+    .filter((h) => h.total > 0)  // 當天完全沒有新聞的話,score固定是0,不畫進圖裡避免誤導
+    .map((h) => ({ time: h.date, value: h.score }));
+
+  sentimentSeries.setData(points);
+  sentimentChart.timeScale().fitContent();
+}
 
 function renderNews(news) {
   const total = news?.total || 0;
@@ -661,6 +691,7 @@ async function loadStock(stockId) {
   renderTrackRecord(data.analysis?.next_day?.track_record);
   renderMlPrediction(data.analysis?.next_day_ml);
   renderNews(data.news);
+  renderSentimentHistory(data.news);
   renderOverview(data);
 
   priceChart.timeScale().fitContent();

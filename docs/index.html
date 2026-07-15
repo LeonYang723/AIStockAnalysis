@@ -293,6 +293,18 @@
     <div class="page-group" data-page="news">
       <section class="chart-section">
         <div class="chart-header">
+          <span>新聞情緒趨勢(每日累積)</span>
+          <span id="sentiment-history-total" class="news-total"></span>
+        </div>
+        <div id="sentiment-chart" class="chart-box sentiment-chart"></div>
+        <p class="overview-note">
+          每個交易日網站會自動記錄當天的新聞氣氛分數(-1代表當天新聞全是利空關鍵字,+1代表全是利多關鍵字)。
+          累積到約一年份的交易日之後,這份歷史就會自動被納入ML模型的訓練特徵。
+        </p>
+      </section>
+
+      <section class="chart-section">
+        <div class="chart-header">
           <span>新聞整體氣氛(關鍵字比對)</span>
           <span id="news-total" class="news-total"></span>
         </div>
