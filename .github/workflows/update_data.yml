@@ -1,0 +1,42 @@
+name: Update Stock Data
+
+on:
+  schedule:
+    # 台灣時間 14:00 (UTC 06:00),收盤後第一次更新
+    - cron: "0 6 * * 1-5"
+    # 台灣時間 22:00 (UTC 14:00),第二次更新(可以補到當天較晚公布的新聞/籌碼資料)
+    - cron: "0 14 * * 1-5"
+    # 台灣時間 23:00 (UTC 15:00),第三次更新
+    - cron: "0 15 * * 1-5"
+  workflow_dispatch: {}   # 允許手動在GitHub網頁上點按鈕觸發
+
+permissions:
+  contents: write
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Fetch data and build JSON
+        env:
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
+        run: python scripts/build_data.py
+
+      - name: Commit and push updated data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/data
+          git diff --staged --quiet && echo "無資料變動" || git commit -m "自動更新股票資料 $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git push
