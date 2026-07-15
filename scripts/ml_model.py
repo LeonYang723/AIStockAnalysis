@@ -32,14 +32,16 @@ BACKTEST_DAYS = 60
 MIN_TRAIN_SAMPLES = 200
 
 
-def build_features(df: pd.DataFrame, inst_df: pd.DataFrame = None, market_df: pd.DataFrame = None) -> pd.DataFrame:
+def build_features(df: pd.DataFrame, inst_df: pd.DataFrame = None, market_df: pd.DataFrame = None,
+                    sentiment_df: pd.DataFrame = None) -> pd.DataFrame:
     """
     從既有的股價資料(close/volume/MA/RSI欄位)衍生模型特徵。
     所有特徵都只用「當天以前」的資訊,不能摻入任何未來資料。
 
     inst_df: 三大法人買賣超(需有 date, foreign_net, trust_net, dealer_net 欄位,單位:張)
     market_df: 大盤加權指數(需有 date, market_close 欄位)
-    這兩個都是可選的,沒有給的話就只用股價衍生的特徵(不會報錯,只是少幾個特徵)。
+    sentiment_df: 新聞情緒每日累積記錄(需有 date, score 欄位,score介於-1~+1)
+    這三個都是可選的,沒有給的話就只用股價衍生的特徵(不會報錯,只是少幾個特徵)。
     """
     feat = pd.DataFrame(index=df.index)
     close = df["close"]
@@ -93,6 +95,14 @@ def build_features(df: pd.DataFrame, inst_df: pd.DataFrame = None, market_df: pd
         feat["market_ret_1"] = 0.0
         feat["market_ret_5"] = 0.0
 
+    # ---- 新聞情緒分數(FinMind新聞查不到歷史,這份是每天累積出來的,累積不夠時傳None,缺值當作0=中性) ----
+    if sentiment_df is not None and not sentiment_df.empty:
+        sentiment_lookup = sentiment_df.drop_duplicates("date").set_index("date")["score"]
+        sentiment_aligned = sentiment_lookup.reindex(dates.values)
+        feat["news_sentiment"] = sentiment_aligned.fillna(0).values
+    else:
+        feat["news_sentiment"] = 0.0
+
     # 除法算出來的特徵(乖離率、量比、報酬率)如果分母剛好是0,會產生inf而不是NaN,
     # sklearn看到inf會直接報錯崩潰,這裡統一轉成NaN,才能被後面的dropna()正常濾掉
     feat = feat.replace([np.inf, -np.inf], np.nan)
@@ -100,21 +110,24 @@ def build_features(df: pd.DataFrame, inst_df: pd.DataFrame = None, market_df: pd
     return feat
 
 
-def train_and_predict(df: pd.DataFrame, inst_df: pd.DataFrame = None, market_df: pd.DataFrame = None) -> dict:
+def train_and_predict(df: pd.DataFrame, inst_df: pd.DataFrame = None, market_df: pd.DataFrame = None,
+                       sentiment_df: pd.DataFrame = None) -> dict:
     """
     訓練模型並預測「最新一個交易日的隔天」漲跌機率。
     df 需含欄位: date, close, volume, MA5, MA20, MA60, RSI6, RSI14,由舊到新排序。
-    inst_df/market_df: 見 build_features() 說明,可選。
+    inst_df/market_df/sentiment_df: 見 build_features() 說明,可選。
 
     回傳格式與統計法一致(up_pct/down_pct/state_label),可以直接餵給 prediction_tracker。
     """
-    feat = build_features(df, inst_df=inst_df, market_df=market_df)
+    feat = build_features(df, inst_df=inst_df, market_df=market_df, sentiment_df=sentiment_df)
 
-    # 診斷log: 確認三大法人/大盤資料有沒有真的餵進來,以及目前用了哪些特徵欄位
+    # 診斷log: 確認三大法人/大盤/新聞情緒資料有沒有真的餵進來,以及目前用了哪些特徵欄位
     has_inst = inst_df is not None and not inst_df.empty
     has_market = market_df is not None and not market_df.empty
+    has_sentiment = sentiment_df is not None and not sentiment_df.empty
     print(f"    [ML特徵] 三大法人資料: {'有帶入' if has_inst else '缺失,用0頂替'}"
-          f" | 大盤資料: {'有帶入' if has_market else '缺失,用0頂替'}")
+          f" | 大盤資料: {'有帶入' if has_market else '缺失,用0頂替'}"
+          f" | 新聞情緒資料: {'有帶入(累積' + str(len(sentiment_df)) + '筆)' if has_sentiment else '累積不足,用0頂替'}")
     print(f"    [ML特徵] 共 {len(feat.columns)} 個特徵: {list(feat.columns)}")
 
     target = (df["close"].shift(-1) > df["close"]).astype(float)

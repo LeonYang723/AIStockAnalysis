@@ -22,7 +22,7 @@ REPO_ROOT = os.path.dirname(SCRIPT_DIR)
 from config import (
     STOCK_LIST, LOOKBACK_DAYS, RSI_PERIODS, MA_WINDOWS, FUNDAMENTALS_QUARTERS,
     ANALYSIS_LOOKBACK_YEARS, NEWS_LOOKBACK_DAYS, NEWS_MAX_ARTICLES, NEWS_TODAY_MAX_ARTICLES,
-    ANOMALY_STREAK_THRESHOLD, OUTPUT_DIR,
+    ANOMALY_STREAK_THRESHOLD, NEWS_SENTIMENT_MIN_FOR_ML, OUTPUT_DIR,
 )
 from data_fetcher import (
     get_stock_price, get_institutional_investors, get_margin_trading,
@@ -33,6 +33,11 @@ from indicators import add_moving_averages, add_rsi_columns
 from analysis import generate_trend_narrative, compute_next_day_probability, compute_streak, get_latest_state
 from ml_model import train_and_predict as ml_train_and_predict
 from news_analysis import summarize_news
+from news_sentiment_log import (
+    load_log as news_sentiment_load_log,
+    save_log as news_sentiment_save_log,
+    add_daily_entry as news_sentiment_add_daily_entry,
+)
 from prediction_tracker import load_log, save_log, resolve_pending, add_new_prediction, compute_track_record
 
 OUTPUT_DIR_ABS = os.path.join(REPO_ROOT, OUTPUT_DIR)
@@ -125,6 +130,31 @@ def build_one(stock_id: str, token: str = None, stock_name: str = None, market_d
         institutional = {"foreign_net": [], "trust_net": [], "dealer_net": [], "total_net": [], "anomalies": {}}
         inst_full_df = None
 
+    # ---------- 財經新聞(關鍵字利多/利空比對) ----------
+    try:
+        news_end_date = end_date
+        news_start_date = (datetime.today() - timedelta(days=NEWS_LOOKBACK_DAYS)).strftime("%Y-%m-%d")
+        news_df = get_stock_news(stock_id, news_start_date, news_end_date, token=token)
+        news = summarize_news(news_df, max_articles=NEWS_MAX_ARTICLES, today_max_articles=NEWS_TODAY_MAX_ARTICLES)
+    except Exception as e:
+        print(f"  財經新聞資料抓取失敗({stock_id}): {e}")
+        news = {"total": 0, "positive_count": 0, "negative_count": 0, "neutral_count": 0, "articles": []}
+
+    # ---------- 新聞情緒每日累積記錄(FinMind新聞查不到歷史,只能像預測追蹤一樣每天存一筆慢慢累積) ----------
+    try:
+        sentiment_log_path = os.path.join(OUTPUT_DIR_ABS, f"{stock_id}_news_sentiment.json")
+        sentiment_log = news_sentiment_load_log(sentiment_log_path)
+        today_str = datetime.today().strftime("%Y-%m-%d")
+        sentiment_log = news_sentiment_add_daily_entry(sentiment_log, today_str, news)
+        news_sentiment_save_log(sentiment_log_path, sentiment_log)
+        news["sentiment_history"] = sentiment_log[-90:]  # 畫面只需要顯示近90筆,不用把整份記錄塞進主要JSON
+        news["sentiment_history_total"] = len(sentiment_log)
+    except Exception as e:
+        print(f"  新聞情緒累積記錄失敗({stock_id}): {e}")
+        sentiment_log = []
+        news["sentiment_history"] = []
+        news["sentiment_history_total"] = 0
+
     # ---------- 近期走向分析 + 隔日漲跌機率(用 full_df 完整歷史資料統計) ----------
     try:
         narrative = generate_trend_narrative(full_df)
@@ -159,7 +189,13 @@ def build_one(stock_id: str, token: str = None, stock_name: str = None, market_d
 
     # ---------- 機器學習模型預測(實驗性,與統計法並存、各自追蹤命中率) ----------
     try:
-        ml_next_day = ml_train_and_predict(full_df, inst_df=inst_full_df, market_df=market_df)
+        # 新聞情緒歷史要累積到一定天數才有意義,不夠的話傳None讓模型自動用中性值頂替
+        if len(sentiment_log) >= NEWS_SENTIMENT_MIN_FOR_ML:
+            sentiment_df = pd.DataFrame(sentiment_log)
+            sentiment_df["date"] = pd.to_datetime(sentiment_df["date"])
+        else:
+            sentiment_df = None
+        ml_next_day = ml_train_and_predict(full_df, inst_df=inst_full_df, market_df=market_df, sentiment_df=sentiment_df)
     except Exception as e:
         print(f"  ML模型預測失敗({stock_id}): {e}")
         ml_next_day = {"up_pct": None, "down_pct": None, "sample_size": 0,
@@ -241,16 +277,6 @@ def build_one(stock_id: str, token: str = None, stock_name: str = None, market_d
     except Exception as e:
         print(f"  基本面季報資料抓取失敗({stock_id}): {e}")
         fundamentals = {"quarters": []}
-
-    # ---------- 財經新聞(關鍵字利多/利空比對) ----------
-    try:
-        news_end_date = end_date
-        news_start_date = (datetime.today() - timedelta(days=NEWS_LOOKBACK_DAYS)).strftime("%Y-%m-%d")
-        news_df = get_stock_news(stock_id, news_start_date, news_end_date, token=token)
-        news = summarize_news(news_df, max_articles=NEWS_MAX_ARTICLES, today_max_articles=NEWS_TODAY_MAX_ARTICLES)
-    except Exception as e:
-        print(f"  財經新聞資料抓取失敗({stock_id}): {e}")
-        news = {"total": 0, "positive_count": 0, "negative_count": 0, "neutral_count": 0, "articles": []}
 
     # ---------- 總覽(彙整各區塊最新數值,給總覽頁一次顯示用,不重新抓資料) ----------
     try:

@@ -38,6 +38,12 @@ NEWS_MAX_ARTICLES = 30
 # 「隔日漲跌機率」預測準確率追蹤,最多保留幾筆歷史紀錄(每個交易日累積一筆)
 TRACK_RECORD_MAX_ENTRIES = 180
 
+# 新聞情緒每日累積記錄,最多保留幾筆(約1000筆等於快4年份的交易日)
+NEWS_SENTIMENT_LOG_MAX_ENTRIES = 1000
+
+# 新聞情緒歷史至少累積到幾筆,才拿去餵給ML模型當特徵(不夠的話ML模型會自動跳過這組特徵)
+NEWS_SENTIMENT_MIN_FOR_ML = 250
+
 # 三大法人連續買超/賣超超過幾天算是「異常」,要標記出來提醒
 ANOMALY_STREAK_THRESHOLD = 3
 
