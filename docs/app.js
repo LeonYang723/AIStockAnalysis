@@ -9,7 +9,7 @@ const AUTH_PASSWORD_HASH = "df67c4a482990d712cd13dabc4a114ba6651f6c852ca2c4e43bb
 const AUTH_SESSION_KEY = "ai_stock_authed";
 
 // 換成你部署 Apps Script 後拿到的網址(/exec結尾那個),沒換之前OTP這關不會動作
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyvanepVkpRvXUGxys_gZyCPuA4XvvJgyh0ae1EYIYws61N5h4M7kP8k73c_cXhUNhR/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbypO5NX4hohaEnLgrKx8jvkq7PnktIJh54b5i5XAo50fblNFV5RD1kOOXBllRiS-E74/exec";
 
 async function sha256Hex(text) {
   const data = new TextEncoder().encode(text);
