@@ -13,7 +13,7 @@ import os
 import json
 import math
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # 確保無論從哪個目錄執行,都能正確定位到 repo 根目錄下的 docs/data
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -315,7 +315,7 @@ def build_one(stock_id: str, token: str = None, stock_name: str = None, market_d
     return {
         "stock_id": stock_id,
         "stock_name": stock_name,
-        "updated_at": datetime.now().isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
         "price": price,
         "volume": volume,
         "ma": ma_series,
@@ -380,7 +380,7 @@ def main():
         json.dump({
             "stocks": manifest,
             "stock_names": manifest_names,
-            "updated_at": datetime.now().isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
         }, f, ensure_ascii=False)
     print(f"已輸出股票清單索引: {manifest_path}")
 

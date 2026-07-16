@@ -106,7 +106,8 @@ def compute_track_record(log: list) -> dict:
     total_resolved = len(resolved)
     accuracy_pct = round(len(correct) / total_resolved * 100, 1) if total_resolved > 0 else None
 
-    recent = sorted(resolved, key=lambda e: e["predict_date"], reverse=True)[:10]
+    # 這裡回傳「全部」已驗證記錄(不是只取近10筆),讓前端可以做日期選單查詢
+    recent = sorted(resolved, key=lambda e: e["predict_date"], reverse=True)
 
     return {
         "total_predictions": len(log),
