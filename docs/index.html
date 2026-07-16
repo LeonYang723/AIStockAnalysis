@@ -19,9 +19,11 @@
         <p id="login-error-msg" class="login-error-msg"></p>
       </div>
 
-      <!-- 第二關: Email + OTP(密碼正確後才會顯示) -->
+      <!-- 第二關: 選姓名 + OTP(密碼正確後才會顯示) -->
       <div id="login-step-otp" class="login-step" style="display:none">
-        <input type="email" id="login-email-input" class="login-input" placeholder="請輸入您的Email" autocomplete="off">
+        <select id="login-name-select" class="login-input">
+          <option value="">載入中...</option>
+        </select>
         <button type="button" id="login-send-otp-btn" class="login-submit-btn login-submit-btn-secondary">寄送驗證碼</button>
 
         <input type="text" id="login-otp-input" class="login-input" placeholder="請輸入收到的驗證碼" autocomplete="off" style="margin-top:10px" disabled>

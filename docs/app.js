@@ -9,7 +9,7 @@ const AUTH_PASSWORD_HASH = "df67c4a482990d712cd13dabc4a114ba6651f6c852ca2c4e43bb
 const AUTH_SESSION_KEY = "ai_stock_authed";
 
 // 換成你部署 Apps Script 後拿到的網址(/exec結尾那個),沒換之前OTP這關不會動作
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyveLd1o3ibpWTfqtBqZo4LsgxfvJ1vXyomaYzIsr00NrF-CPTRQkwHNuN0m6NYz68p/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec";
 
 async function sha256Hex(text) {
   const data = new TextEncoder().encode(text);
@@ -17,14 +17,20 @@ async function sha256Hex(text) {
   return Array.from(new Uint8Array(hashBuffer)).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-async function requestSendOtp_(email) {
-  const url = `${APPS_SCRIPT_URL}?action=sendOtp&email=${encodeURIComponent(email)}`;
+async function requestGetNames_() {
+  const url = `${APPS_SCRIPT_URL}?action=getNames`;
   const res = await fetch(url);
   return res.json();
 }
 
-async function requestVerifyOtp_(email, code) {
-  const url = `${APPS_SCRIPT_URL}?action=verifyOtp&email=${encodeURIComponent(email)}&code=${encodeURIComponent(code)}`;
+async function requestSendOtp_(name) {
+  const url = `${APPS_SCRIPT_URL}?action=sendOtp&name=${encodeURIComponent(name)}`;
+  const res = await fetch(url);
+  return res.json();
+}
+
+async function requestVerifyOtp_(name, code) {
+  const url = `${APPS_SCRIPT_URL}?action=verifyOtp&name=${encodeURIComponent(name)}&code=${encodeURIComponent(code)}`;
   const res = await fetch(url);
   return res.json();
 }
@@ -45,14 +51,12 @@ function initLoginGate() {
   const passwordBtn = document.getElementById("login-submit-btn");
   const passwordError = document.getElementById("login-error-msg");
 
-  const emailInput = document.getElementById("login-email-input");
+  const nameSelect = document.getElementById("login-name-select");
   const sendOtpBtn = document.getElementById("login-send-otp-btn");
   const otpInput = document.getElementById("login-otp-input");
   const verifyOtpBtn = document.getElementById("login-verify-otp-btn");
   const otpStatus = document.getElementById("login-otp-status");
   const otpError = document.getElementById("login-otp-error");
-
-  let verifiedEmail = "";
 
   // ---- 第一關: 密碼 ----
   async function tryPassword() {
@@ -60,7 +64,7 @@ function initLoginGate() {
     if (hash === AUTH_PASSWORD_HASH) {
       stepPasswordEl.style.display = "none";
       stepOtpEl.style.display = "flex";
-      emailInput.focus();
+      loadNameOptions();
     } else {
       passwordError.textContent = "密碼錯誤,請再試一次";
       passwordInput.value = "";
@@ -72,11 +76,32 @@ function initLoginGate() {
     if (e.key === "Enter") tryPassword();
   });
 
+  // ---- 密碼過關後,向後端要姓名清單填進下拉選單(Email全程不會出現在前端) ----
+  async function loadNameOptions() {
+    nameSelect.innerHTML = `<option value="">載入中...</option>`;
+    try {
+      const result = await requestGetNames_();
+      if (result.success && result.names && result.names.length > 0) {
+        nameSelect.innerHTML = `<option value="">請選擇姓名</option>`;
+        result.names.forEach((name) => {
+          const opt = document.createElement("option");
+          opt.value = name;
+          opt.textContent = name;
+          nameSelect.appendChild(opt);
+        });
+      } else {
+        nameSelect.innerHTML = `<option value="">無法載入名單</option>`;
+      }
+    } catch (err) {
+      nameSelect.innerHTML = `<option value="">無法載入名單,請檢查網路</option>`;
+    }
+  }
+
   // ---- 第二關: 寄送OTP ----
   async function sendOtp() {
-    const email = emailInput.value.trim();
-    if (!email) {
-      otpError.textContent = "請先輸入Email";
+    const name = nameSelect.value;
+    if (!name) {
+      otpError.textContent = "請先選擇姓名";
       return;
     }
     otpError.textContent = "";
@@ -84,9 +109,8 @@ function initLoginGate() {
     otpStatus.textContent = "寄送中...";
 
     try {
-      const result = await requestSendOtp_(email);
+      const result = await requestSendOtp_(name);
       if (result.success) {
-        verifiedEmail = email;
         otpStatus.textContent = "驗證碼已寄出,請至信箱查收(5分鐘內有效)";
         otpInput.disabled = false;
         verifyOtpBtn.disabled = false;
@@ -105,7 +129,7 @@ function initLoginGate() {
         }, 1000);
       } else {
         otpStatus.textContent = "";
-        otpError.textContent = result.message || "寄送失敗,請確認Email是否正確";
+        otpError.textContent = result.message || "寄送失敗,請稍後再試";
         sendOtpBtn.disabled = false;
       }
     } catch (err) {
@@ -127,7 +151,7 @@ function initLoginGate() {
     verifyOtpBtn.disabled = true;
 
     try {
-      const result = await requestVerifyOtp_(verifiedEmail, code);
+      const result = await requestVerifyOtp_(nameSelect.value, code);
       if (result.success) {
         sessionStorage.setItem(AUTH_SESSION_KEY, "1");
         overlay.style.display = "none";
