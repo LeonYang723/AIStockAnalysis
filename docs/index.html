@@ -187,9 +187,20 @@
 
             <div class="track-lookup">
               <label>查詢某一天的預測結果:</label>
-              <select id="track-year-select"><option value="">年</option></select>
-              <select id="track-month-select"><option value="">月</option></select>
-              <select id="track-day-select"><option value="">日</option></select>
+              <details id="track-calendar-details" class="track-calendar-details">
+                <summary id="track-calendar-summary">請選擇日期</summary>
+                <div class="track-calendar">
+                  <div class="track-calendar-header">
+                    <button type="button" id="track-cal-prev" class="track-calendar-nav">‹</button>
+                    <span id="track-cal-month-label" class="track-calendar-month-label"></span>
+                    <button type="button" id="track-cal-next" class="track-calendar-nav">›</button>
+                  </div>
+                  <div class="track-calendar-weekdays">
+                    <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+                  </div>
+                  <div id="track-cal-grid" class="track-calendar-grid"></div>
+                </div>
+              </details>
             </div>
             <div id="track-date-result" class="track-date-result"></div>
 
@@ -265,9 +276,20 @@
 
             <div class="track-lookup">
               <label>查詢某一天的預測結果:</label>
-              <select id="ml-track-year-select"><option value="">年</option></select>
-              <select id="ml-track-month-select"><option value="">月</option></select>
-              <select id="ml-track-day-select"><option value="">日</option></select>
+              <details id="ml-track-calendar-details" class="track-calendar-details">
+                <summary id="ml-track-calendar-summary">請選擇日期</summary>
+                <div class="track-calendar">
+                  <div class="track-calendar-header">
+                    <button type="button" id="ml-track-cal-prev" class="track-calendar-nav">‹</button>
+                    <span id="ml-track-cal-month-label" class="track-calendar-month-label"></span>
+                    <button type="button" id="ml-track-cal-next" class="track-calendar-nav">›</button>
+                  </div>
+                  <div class="track-calendar-weekdays">
+                    <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+                  </div>
+                  <div id="ml-track-cal-grid" class="track-calendar-grid"></div>
+                </div>
+              </details>
             </div>
             <div id="ml-track-date-result" class="track-date-result"></div>
 
