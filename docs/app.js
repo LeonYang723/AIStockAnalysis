@@ -85,6 +85,13 @@ let perSeries, pbrSeries;
 let maSeriesMap = {};
 let isSyncingRange = false;
 
+function formatTaiwanTime(dateStr) {
+  // 明確指定 Asia/Taipei 時區,不依賴瀏覽器自己的時區設定去猜,
+  // 這樣不管在哪台裝置、瀏覽器語系設定是什麼,顯示的都保證是台灣時間
+  if (!dateStr) return "";
+  return new Date(dateStr).toLocaleString("zh-TW", { timeZone: "Asia/Taipei" });
+}
+
 function chartBaseOptions() {
   return {
     layout: {
@@ -482,7 +489,7 @@ function renderOverview(data) {
   const stockName = data.stock_name || manifestStockNames[data.stock_id] || "";
   overviewStockTitleEl.textContent = stockName ? `${stockName} ${data.stock_id} 總覽` : `${data.stock_id} 總覽`;
   overviewUpdatedEl.textContent = data.updated_at
-    ? `資料更新: ${new Date(data.updated_at).toLocaleString("zh-TW")}`
+    ? `資料更新: ${formatTaiwanTime(data.updated_at)}`
     : "";
 
   overviewCloseEl.textContent = overview.close != null ? overview.close.toFixed(2) : "-";
@@ -556,7 +563,7 @@ function renderStaleWarning(updatedAtStr) {
   if (daysSince > STALE_WARNING_DAYS) {
     staleWarningEl.style.display = "";
     staleWarningEl.textContent =
-      `⚠ 資料已經 ${Math.floor(daysSince)} 天沒有更新了(最後更新: ${updated.toLocaleString("zh-TW")}),` +
+      `⚠ 資料已經 ${Math.floor(daysSince)} 天沒有更新了(最後更新: ${formatTaiwanTime(updatedAtStr)}),` +
       `可能是排程沒有正常執行,建議去 GitHub Actions 檢查一下。`;
   } else {
     staleWarningEl.style.display = "none";
@@ -720,8 +727,7 @@ async function loadStock(stockId) {
   marginChart.timeScale().fitContent();
   valuationChart.timeScale().fitContent();
 
-  const updated = new Date(data.updated_at);
-  updatedAtEl.textContent = `資料更新: ${updated.toLocaleString("zh-TW")}`;
+  updatedAtEl.textContent = `資料更新: ${formatTaiwanTime(data.updated_at)}`;
   renderStaleWarning(data.updated_at);
 }
 
