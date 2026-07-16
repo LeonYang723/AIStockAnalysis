@@ -1,11 +1,15 @@
 // docs/app.js
 
-// ---------- 簡易密碼保護 ----------
-// 這只是擋住畫面顯示,不是真正的存取控制:GitHub Pages是純靜態網站,
-// 沒有伺服器可以做驗證,docs/data/*.json這些資料檔案本身的網址依然是公開的,
-// 只是用來擋掉不知道密碼、隨手點開連結的人,不是防駭客等級的安全機制。
+// ---------- 登入保護: 密碼 + Email OTP 兩關 ----------
+// 密碼只是擋住畫面顯示,不是真正的存取控制:GitHub Pages是純靜態網站,
+// docs/data/*.json這些資料檔案本身的網址依然是公開的。
+// OTP這關才是真正有意義的第二道防護,因為驗證碼是由Google Apps Script
+// (你控制的後端)產生並寄送到指定Email,前端沒辦法自己算出正確答案。
 const AUTH_PASSWORD_HASH = "df67c4a482990d712cd13dabc4a114ba6651f6c852ca2c4e43bbbd8ccfcb7072";
 const AUTH_SESSION_KEY = "ai_stock_authed";
+
+// 換成你部署 Apps Script 後拿到的網址(/exec結尾那個),沒換之前OTP這關不會動作
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec";
 
 async function sha256Hex(text) {
   const data = new TextEncoder().encode(text);
@@ -13,35 +17,137 @@ async function sha256Hex(text) {
   return Array.from(new Uint8Array(hashBuffer)).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+async function requestSendOtp_(email) {
+  const url = `${APPS_SCRIPT_URL}?action=sendOtp&email=${encodeURIComponent(email)}`;
+  const res = await fetch(url);
+  return res.json();
+}
+
+async function requestVerifyOtp_(email, code) {
+  const url = `${APPS_SCRIPT_URL}?action=verifyOtp&email=${encodeURIComponent(email)}&code=${encodeURIComponent(code)}`;
+  const res = await fetch(url);
+  return res.json();
+}
+
 function initLoginGate() {
   const overlay = document.getElementById("login-overlay");
-  const input = document.getElementById("login-password-input");
-  const submitBtn = document.getElementById("login-submit-btn");
-  const errorMsg = document.getElementById("login-error-msg");
 
-  // 同一個分頁驗證過一次後,關掉分頁前都不用再輸入(存在sessionStorage,不是永久記住)
+  // 同一個分頁驗證過一次後,關掉分頁前都不用再重新走整套流程
   if (sessionStorage.getItem(AUTH_SESSION_KEY) === "1") {
     overlay.style.display = "none";
     return;
   }
 
-  async function tryLogin() {
-    const hash = await sha256Hex(input.value);
+  const stepPasswordEl = document.getElementById("login-step-password");
+  const stepOtpEl = document.getElementById("login-step-otp");
+
+  const passwordInput = document.getElementById("login-password-input");
+  const passwordBtn = document.getElementById("login-submit-btn");
+  const passwordError = document.getElementById("login-error-msg");
+
+  const emailInput = document.getElementById("login-email-input");
+  const sendOtpBtn = document.getElementById("login-send-otp-btn");
+  const otpInput = document.getElementById("login-otp-input");
+  const verifyOtpBtn = document.getElementById("login-verify-otp-btn");
+  const otpStatus = document.getElementById("login-otp-status");
+  const otpError = document.getElementById("login-otp-error");
+
+  let verifiedEmail = "";
+
+  // ---- 第一關: 密碼 ----
+  async function tryPassword() {
+    const hash = await sha256Hex(passwordInput.value);
     if (hash === AUTH_PASSWORD_HASH) {
-      sessionStorage.setItem(AUTH_SESSION_KEY, "1");
-      overlay.style.display = "none";
+      stepPasswordEl.style.display = "none";
+      stepOtpEl.style.display = "flex";
+      emailInput.focus();
     } else {
-      errorMsg.textContent = "密碼錯誤,請再試一次";
-      input.value = "";
-      input.focus();
+      passwordError.textContent = "密碼錯誤,請再試一次";
+      passwordInput.value = "";
+      passwordInput.focus();
     }
   }
-
-  submitBtn.addEventListener("click", tryLogin);
-  input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") tryLogin();
+  passwordBtn.addEventListener("click", tryPassword);
+  passwordInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") tryPassword();
   });
-  input.focus();
+
+  // ---- 第二關: 寄送OTP ----
+  async function sendOtp() {
+    const email = emailInput.value.trim();
+    if (!email) {
+      otpError.textContent = "請先輸入Email";
+      return;
+    }
+    otpError.textContent = "";
+    sendOtpBtn.disabled = true;
+    otpStatus.textContent = "寄送中...";
+
+    try {
+      const result = await requestSendOtp_(email);
+      if (result.success) {
+        verifiedEmail = email;
+        otpStatus.textContent = "驗證碼已寄出,請至信箱查收(5分鐘內有效)";
+        otpInput.disabled = false;
+        verifyOtpBtn.disabled = false;
+        otpInput.focus();
+        let cooldown = 60;
+        sendOtpBtn.textContent = `請稍候(${cooldown}s)`;
+        const timer = setInterval(() => {
+          cooldown -= 1;
+          if (cooldown <= 0) {
+            clearInterval(timer);
+            sendOtpBtn.textContent = "重新寄送驗證碼";
+            sendOtpBtn.disabled = false;
+          } else {
+            sendOtpBtn.textContent = `請稍候(${cooldown}s)`;
+          }
+        }, 1000);
+      } else {
+        otpStatus.textContent = "";
+        otpError.textContent = result.message || "寄送失敗,請確認Email是否正確";
+        sendOtpBtn.disabled = false;
+      }
+    } catch (err) {
+      otpStatus.textContent = "";
+      otpError.textContent = "網路錯誤,請稍後再試";
+      sendOtpBtn.disabled = false;
+    }
+  }
+  sendOtpBtn.addEventListener("click", sendOtp);
+
+  // ---- 第二關: 驗證OTP ----
+  async function verifyOtp() {
+    const code = otpInput.value.trim();
+    if (!code) {
+      otpError.textContent = "請輸入驗證碼";
+      return;
+    }
+    otpError.textContent = "";
+    verifyOtpBtn.disabled = true;
+
+    try {
+      const result = await requestVerifyOtp_(verifiedEmail, code);
+      if (result.success) {
+        sessionStorage.setItem(AUTH_SESSION_KEY, "1");
+        overlay.style.display = "none";
+      } else {
+        otpError.textContent = result.message || "驗證碼錯誤";
+        otpInput.value = "";
+        otpInput.focus();
+        verifyOtpBtn.disabled = false;
+      }
+    } catch (err) {
+      otpError.textContent = "網路錯誤,請稍後再試";
+      verifyOtpBtn.disabled = false;
+    }
+  }
+  verifyOtpBtn.addEventListener("click", verifyOtp);
+  otpInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") verifyOtp();
+  });
+
+  passwordInput.focus();
 }
 
 initLoginGate();
