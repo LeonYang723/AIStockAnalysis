@@ -41,9 +41,12 @@ let sentimentChart, sentimentSeries;
 const trackSummaryTotalEl = document.getElementById("track-summary-total");
 const trackSummaryCorrectEl = document.getElementById("track-summary-correct");
 const trackSummaryRateEl = document.getElementById("track-summary-rate");
-const trackYearSelectEl = document.getElementById("track-year-select");
-const trackMonthSelectEl = document.getElementById("track-month-select");
-const trackDaySelectEl = document.getElementById("track-day-select");
+const trackCalDetailsEl = document.getElementById("track-calendar-details");
+const trackCalSummaryEl = document.getElementById("track-calendar-summary");
+const trackCalPrevEl = document.getElementById("track-cal-prev");
+const trackCalNextEl = document.getElementById("track-cal-next");
+const trackCalMonthLabelEl = document.getElementById("track-cal-month-label");
+const trackCalGridEl = document.getElementById("track-cal-grid");
 const trackDateResultEl = document.getElementById("track-date-result");
 const mlStateLabelEl = document.getElementById("ml-state-label");
 const mlBarUpEl = document.getElementById("ml-bar-up");
@@ -53,9 +56,12 @@ const mlDownPctEl = document.getElementById("ml-down-pct");
 const mlTrackSummaryTotalEl = document.getElementById("ml-track-summary-total");
 const mlTrackSummaryCorrectEl = document.getElementById("ml-track-summary-correct");
 const mlTrackSummaryRateEl = document.getElementById("ml-track-summary-rate");
-const mlTrackYearSelectEl = document.getElementById("ml-track-year-select");
-const mlTrackMonthSelectEl = document.getElementById("ml-track-month-select");
-const mlTrackDaySelectEl = document.getElementById("ml-track-day-select");
+const mlTrackCalDetailsEl = document.getElementById("ml-track-calendar-details");
+const mlTrackCalSummaryEl = document.getElementById("ml-track-calendar-summary");
+const mlTrackCalPrevEl = document.getElementById("ml-track-cal-prev");
+const mlTrackCalNextEl = document.getElementById("ml-track-cal-next");
+const mlTrackCalMonthLabelEl = document.getElementById("ml-track-cal-month-label");
+const mlTrackCalGridEl = document.getElementById("ml-track-cal-grid");
 const mlTrackDateResultEl = document.getElementById("ml-track-date-result");
 const instAnomalyBadgesEl = document.getElementById("inst-anomaly-badges");
 const overviewStockTitleEl = document.getElementById("overview-stock-title");
@@ -462,87 +468,99 @@ function renderErrorAnalysis(errorAnalysis, els) {
   }
 }
 
-function setupDateLookup(recent, yearEl, monthEl, dayEl, resultEl) {
-  // 建立「年 -> 月 -> 日」的巢狀結構,選單逐層過濾,累積很多筆記錄時也不會變成長長一串難找
-  const dateMap = {};
+function setupCalendarLookup(recent, calEls, resultEl) {
+  const { detailsEl, summaryEl, prevEl, nextEl, monthLabelEl, gridEl } = calEls;
+
+  // 建立「年月 -> 那個月有資料的日子」的對照表,畫格子時用來判斷哪幾天可以點
+  const dateMap = {}; // { "2026-07": Set{"14","15",...} }
+  const recordByDate = {};
   recent.forEach((r) => {
-    const [y, m, d] = r.predict_date.split("-");
-    if (!dateMap[y]) dateMap[y] = {};
-    if (!dateMap[y][m]) dateMap[y][m] = [];
-    dateMap[y][m].push(d);
+    const ym = r.predict_date.slice(0, 7);
+    if (!dateMap[ym]) dateMap[ym] = new Set();
+    dateMap[ym].add(r.predict_date.slice(8, 10));
+    recordByDate[r.predict_date] = r;
   });
-  const years = Object.keys(dateMap).sort((a, b) => b.localeCompare(a));
-
-  function populateYearSelect() {
-    yearEl.innerHTML = `<option value="">年</option>`;
-    years.forEach((y) => {
-      const opt = document.createElement("option");
-      opt.value = y;
-      opt.textContent = `${y}年`;
-      yearEl.appendChild(opt);
-    });
-  }
-
-  function populateMonthSelect(year) {
-    monthEl.innerHTML = `<option value="">月</option>`;
-    if (!year || !dateMap[year]) return;
-    Object.keys(dateMap[year]).sort((a, b) => b.localeCompare(a)).forEach((m) => {
-      const opt = document.createElement("option");
-      opt.value = m;
-      opt.textContent = `${parseInt(m, 10)}月`;
-      monthEl.appendChild(opt);
-    });
-  }
-
-  function populateDaySelect(year, month) {
-    dayEl.innerHTML = `<option value="">日</option>`;
-    if (!year || !month || !dateMap[year]?.[month]) return;
-    [...dateMap[year][month]].sort((a, b) => b.localeCompare(a)).forEach((d) => {
-      const opt = document.createElement("option");
-      opt.value = d;
-      opt.textContent = `${parseInt(d, 10)}日`;
-      dayEl.appendChild(opt);
-    });
-  }
-
-  function tryRenderSelection() {
-    const y = yearEl.value, m = monthEl.value, d = dayEl.value;
-    if (!y || !m || !d) {
-      renderTrackDateDetail(null, resultEl);
-      return;
-    }
-    const record = recent.find((r) => r.predict_date === `${y}-${m}-${d}`);
-    renderTrackDateDetail(record, resultEl);
-  }
-
-  populateYearSelect();
-  yearEl.onchange = () => {
-    populateMonthSelect(yearEl.value);
-    dayEl.innerHTML = `<option value="">日</option>`;
-    tryRenderSelection();
-  };
-  monthEl.onchange = () => {
-    populateDaySelect(yearEl.value, monthEl.value);
-    tryRenderSelection();
-  };
-  dayEl.onchange = tryRenderSelection;
 
   if (recent.length === 0) {
+    summaryEl.textContent = "請選擇日期";
+    monthLabelEl.textContent = "";
+    gridEl.innerHTML = "";
+    prevEl.disabled = true;
+    nextEl.disabled = true;
     resultEl.innerHTML = `<div class="track-date-empty">目前還沒有累積到任何已驗證的預測記錄,持續運作一段時間後才會開始有資料可以查詢。</div>`;
     return;
   }
 
-  // 預設選最新一筆(recent已經是新到舊排序,第一筆就是最新)
-  const [defaultY, defaultM, defaultD] = recent[0].predict_date.split("-");
-  populateMonthSelect(defaultY);
-  populateDaySelect(defaultY, defaultM);
-  yearEl.value = defaultY;
-  monthEl.value = defaultM;
-  dayEl.value = defaultD;
-  renderTrackDateDetail(recent[0], resultEl);
+  // 記錄已經是新到舊排序,最早/最新的年月分別是導覽箭頭能到達的邊界
+  const allYm = Object.keys(dateMap).sort();
+  const earliestYm = allYm[0];
+  const latestYm = allYm[allYm.length - 1];
+
+  let viewYear = parseInt(recent[0].predict_date.slice(0, 4), 10);
+  let viewMonth = parseInt(recent[0].predict_date.slice(5, 7), 10);
+  let selectedDate = recent[0].predict_date;
+
+  function ymKey(y, m) {
+    return `${y}-${String(m).padStart(2, "0")}`;
+  }
+
+  function renderGrid() {
+    const ym = ymKey(viewYear, viewMonth);
+    monthLabelEl.textContent = `${viewYear}年${viewMonth}月`;
+    prevEl.disabled = ym <= earliestYm;
+    nextEl.disabled = ym >= latestYm;
+
+    gridEl.innerHTML = "";
+    const firstDay = new Date(viewYear, viewMonth - 1, 1);
+    const daysInMonth = new Date(viewYear, viewMonth, 0).getDate();
+    const startWeekday = firstDay.getDay(); // 0=週日
+
+    for (let i = 0; i < startWeekday; i++) {
+      const empty = document.createElement("div");
+      empty.className = "track-cal-cell empty";
+      gridEl.appendChild(empty);
+    }
+
+    const daysWithData = dateMap[ym] || new Set();
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dayStr = String(day).padStart(2, "0");
+      const fullDate = `${ym}-${dayStr}`;
+      const cell = document.createElement("div");
+      cell.textContent = day;
+
+      if (daysWithData.has(dayStr)) {
+        cell.className = "track-cal-cell has-data" + (fullDate === selectedDate ? " selected" : "");
+        cell.addEventListener("click", () => {
+          selectedDate = fullDate;
+          summaryEl.textContent = fullDate;
+          renderTrackDateDetail(recordByDate[fullDate], resultEl);
+          renderGrid();
+          detailsEl.open = false;
+        });
+      } else {
+        cell.className = "track-cal-cell disabled";
+      }
+      gridEl.appendChild(cell);
+    }
+  }
+
+  prevEl.onclick = () => {
+    viewMonth -= 1;
+    if (viewMonth < 1) { viewMonth = 12; viewYear -= 1; }
+    renderGrid();
+  };
+  nextEl.onclick = () => {
+    viewMonth += 1;
+    if (viewMonth > 12) { viewMonth = 1; viewYear += 1; }
+    renderGrid();
+  };
+
+  summaryEl.textContent = selectedDate;
+  renderGrid();
+  renderTrackDateDetail(recordByDate[selectedDate], resultEl);
 }
 
-function renderTrackRecordGeneric(trackRecord, summaryEls, dateEls, resultEl, errorAnalysisEls) {
+function renderTrackRecordGeneric(trackRecord, summaryEls, calEls, resultEl, errorAnalysisEls) {
   const { totalEl, correctEl, rateEl } = summaryEls;
   const resolvedCount = trackRecord?.resolved_count || 0;
   const correctCount = trackRecord?.correct_count || 0;
@@ -553,7 +571,7 @@ function renderTrackRecordGeneric(trackRecord, summaryEls, dateEls, resultEl, er
   rateEl.textContent = accuracyPct != null ? `${accuracyPct}%` : "-";
 
   const recent = trackRecord?.recent || [];
-  setupDateLookup(recent, dateEls.yearEl, dateEls.monthEl, dateEls.dayEl, resultEl);
+  setupCalendarLookup(recent, calEls, resultEl);
 
   if (errorAnalysisEls) {
     renderErrorAnalysis(trackRecord?.error_analysis, errorAnalysisEls);
@@ -564,7 +582,11 @@ function renderTrackRecord(trackRecord) {
   renderTrackRecordGeneric(
     trackRecord,
     { totalEl: trackSummaryTotalEl, correctEl: trackSummaryCorrectEl, rateEl: trackSummaryRateEl },
-    { yearEl: trackYearSelectEl, monthEl: trackMonthSelectEl, dayEl: trackDaySelectEl },
+    {
+      detailsEl: trackCalDetailsEl, summaryEl: trackCalSummaryEl,
+      prevEl: trackCalPrevEl, nextEl: trackCalNextEl,
+      monthLabelEl: trackCalMonthLabelEl, gridEl: trackCalGridEl,
+    },
     trackDateResultEl,
     {
       confidenceEl: document.getElementById("track-confidence-breakdown"),
@@ -767,7 +789,11 @@ async function loadCompareTable(force = false) {
 
 function renderMlPrediction(mlNextDay) {
   const mlSummaryEls = { totalEl: mlTrackSummaryTotalEl, correctEl: mlTrackSummaryCorrectEl, rateEl: mlTrackSummaryRateEl };
-  const mlDateEls = { yearEl: mlTrackYearSelectEl, monthEl: mlTrackMonthSelectEl, dayEl: mlTrackDaySelectEl };
+  const mlDateEls = {
+    detailsEl: mlTrackCalDetailsEl, summaryEl: mlTrackCalSummaryEl,
+    prevEl: mlTrackCalPrevEl, nextEl: mlTrackCalNextEl,
+    monthLabelEl: mlTrackCalMonthLabelEl, gridEl: mlTrackCalGridEl,
+  };
   const mlErrorAnalysisEls = {
     confidenceEl: document.getElementById("ml-confidence-breakdown"),
     matchEl: document.getElementById("ml-match-breakdown"),
