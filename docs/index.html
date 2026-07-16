@@ -169,15 +169,28 @@
             <div class="track-record-header">
               <span>這個機率過去猜得準不準?(自動追蹤驗證)</span>
             </div>
-            <p id="track-record-summary" class="track-record-summary"></p>
-            <div class="track-record-table-wrap">
-              <table class="track-record-table">
-                <thead>
-                  <tr><th>預測日</th><th>當時猜</th><th>驗證日</th><th>實際結果</th><th>猜中?</th></tr>
-                </thead>
-                <tbody id="track-record-body"></tbody>
-              </table>
+
+            <div class="track-summary-card">
+              <div class="track-summary-item">
+                <div class="track-summary-label">累積次數</div>
+                <div id="track-summary-total" class="track-summary-value">-</div>
+              </div>
+              <div class="track-summary-item">
+                <div class="track-summary-label">命中次數</div>
+                <div id="track-summary-correct" class="track-summary-value">-</div>
+              </div>
+              <div class="track-summary-item track-summary-item-highlight">
+                <div class="track-summary-label">命中率</div>
+                <div id="track-summary-rate" class="track-summary-value track-summary-value-lg">-</div>
+              </div>
             </div>
+
+            <div class="track-lookup">
+              <label for="track-date-select">查詢某一天的預測結果:</label>
+              <select id="track-date-select"><option value="">請選擇日期</option></select>
+            </div>
+            <div id="track-date-result" class="track-date-result"></div>
+
             <p class="track-record-note">
               每個交易日網站會自動記錄當天做出的漲跌預測,隔天知道實際結果後自動回頭核對。
               樣本數還很少的時候,命中率參考價值有限,需要累積較長時間才有統計意義。
@@ -199,7 +212,6 @@
           <div class="prob-legend">
             <span class="prob-up-text">上漲 <b id="ml-up-pct">-</b>%</span>
             <span class="prob-down-text">下跌 <b id="ml-down-pct">-</b>%</span>
-            <span id="ml-track-inline" class="prob-sample"></span>
           </div>
           <p class="prob-disclaimer">
             這是用近5年的股價/技術指標訓練的邏輯迴歸模型,跟上面的歷史統計法是兩種獨立的方法,
@@ -211,15 +223,28 @@
             <div class="track-record-header">
               <span>這個模型過去猜得準不準?(自動追蹤驗證)</span>
             </div>
-            <p id="ml-track-summary" class="track-record-summary"></p>
-            <div class="track-record-table-wrap">
-              <table class="track-record-table">
-                <thead>
-                  <tr><th>預測日</th><th>當時猜</th><th>驗證日</th><th>實際結果</th><th>猜中?</th></tr>
-                </thead>
-                <tbody id="ml-track-body"></tbody>
-              </table>
+
+            <div class="track-summary-card">
+              <div class="track-summary-item">
+                <div class="track-summary-label">累積次數</div>
+                <div id="ml-track-summary-total" class="track-summary-value">-</div>
+              </div>
+              <div class="track-summary-item">
+                <div class="track-summary-label">命中次數</div>
+                <div id="ml-track-summary-correct" class="track-summary-value">-</div>
+              </div>
+              <div class="track-summary-item track-summary-item-highlight">
+                <div class="track-summary-label">命中率</div>
+                <div id="ml-track-summary-rate" class="track-summary-value track-summary-value-lg">-</div>
+              </div>
             </div>
+
+            <div class="track-lookup">
+              <label for="ml-track-date-select">查詢某一天的預測結果:</label>
+              <select id="ml-track-date-select"><option value="">請選擇日期</option></select>
+            </div>
+            <div id="ml-track-date-result" class="track-date-result"></div>
+
             <p class="track-record-note">
               跟上面統計法用同一套自動核對機制,但這是兩個完全獨立的紀錄,方便互相比較準確率。
             </p>

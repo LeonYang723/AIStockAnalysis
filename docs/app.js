@@ -38,16 +38,21 @@ const newsListEl = document.getElementById("news-list");
 const sentimentChartEl = document.getElementById("sentiment-chart");
 const sentimentHistoryTotalEl = document.getElementById("sentiment-history-total");
 let sentimentChart, sentimentSeries;
-const trackSummaryEl = document.getElementById("track-record-summary");
-const trackBodyEl = document.getElementById("track-record-body");
+const trackSummaryTotalEl = document.getElementById("track-summary-total");
+const trackSummaryCorrectEl = document.getElementById("track-summary-correct");
+const trackSummaryRateEl = document.getElementById("track-summary-rate");
+const trackDateSelectEl = document.getElementById("track-date-select");
+const trackDateResultEl = document.getElementById("track-date-result");
 const mlStateLabelEl = document.getElementById("ml-state-label");
 const mlBarUpEl = document.getElementById("ml-bar-up");
 const mlBarDownEl = document.getElementById("ml-bar-down");
 const mlUpPctEl = document.getElementById("ml-up-pct");
 const mlDownPctEl = document.getElementById("ml-down-pct");
-const mlTrackInlineEl = document.getElementById("ml-track-inline");
-const mlTrackSummaryEl = document.getElementById("ml-track-summary");
-const mlTrackBodyEl = document.getElementById("ml-track-body");
+const mlTrackSummaryTotalEl = document.getElementById("ml-track-summary-total");
+const mlTrackSummaryCorrectEl = document.getElementById("ml-track-summary-correct");
+const mlTrackSummaryRateEl = document.getElementById("ml-track-summary-rate");
+const mlTrackDateSelectEl = document.getElementById("ml-track-date-select");
+const mlTrackDateResultEl = document.getElementById("ml-track-date-result");
 const instAnomalyBadgesEl = document.getElementById("inst-anomaly-badges");
 const overviewStockTitleEl = document.getElementById("overview-stock-title");
 const overviewUpdatedEl = document.getElementById("overview-updated");
@@ -390,48 +395,70 @@ function renderNews(news) {
   });
 }
 
-function renderTrackRecordGeneric(trackRecord, summaryEl, bodyEl) {
-  bodyEl.innerHTML = "";
+const TRACK_DIRECTION_TEXT = { up: "漲", down: "跌" };
 
+function renderTrackDateDetail(record, resultEl) {
+  resultEl.innerHTML = "";
+  if (!record) {
+    resultEl.innerHTML = `<div class="track-date-empty">請選擇上方的日期查看該次預測結果</div>`;
+    return;
+  }
+  const guessTag = record.correct
+    ? `<span class="track-tag hit">✓ 猜中</span>`
+    : `<span class="track-tag miss">✕ 猜錯</span>`;
+  resultEl.innerHTML = `
+    <div class="track-date-row">
+      <span>預測日: <b>${record.predict_date}</b></span>
+      <span>當時猜: <b>${TRACK_DIRECTION_TEXT[record.predicted_direction] || "-"}</b></span>
+      <span>驗證日: <b>${record.target_date || "-"}</b></span>
+      <span>實際結果: <b>${TRACK_DIRECTION_TEXT[record.actual_direction] || "-"}</b></span>
+      <span>${guessTag}</span>
+    </div>
+  `;
+}
+
+function renderTrackRecordGeneric(trackRecord, summaryEls, selectEl, resultEl) {
+  const { totalEl, correctEl, rateEl } = summaryEls;
   const resolvedCount = trackRecord?.resolved_count || 0;
   const correctCount = trackRecord?.correct_count || 0;
   const accuracyPct = trackRecord?.accuracy_pct;
 
-  if (resolvedCount === 0) {
-    summaryEl.textContent = "目前還沒有累積到任何已驗證的預測記錄,持續運作一段時間後才會開始顯示命中率。";
-  } else {
-    summaryEl.innerHTML =
-      `目前累積 <b>${resolvedCount}</b> 次已知結果的預測,命中 <b>${correctCount}</b> 次,` +
-      `命中率 <b>${accuracyPct}%</b>`;
-  }
+  totalEl.textContent = resolvedCount;
+  correctEl.textContent = correctCount;
+  rateEl.textContent = accuracyPct != null ? `${accuracyPct}%` : "-";
 
   const recent = trackRecord?.recent || [];
-  if (recent.length === 0) {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `<td colspan="5">尚無已驗證的記錄</td>`;
-    bodyEl.appendChild(tr);
-    return;
-  }
 
-  const directionText = { up: "漲", down: "跌" };
+  // 重建日期選單(每次切換股票都要重新填,避免殘留上一支股票的日期清單)
+  selectEl.innerHTML = `<option value="">請選擇日期</option>`;
   recent.forEach((r) => {
-    const tr = document.createElement("tr");
-    const guessTag = r.correct
-      ? `<span class="track-tag hit">✓ 猜中</span>`
-      : `<span class="track-tag miss">✕ 猜錯</span>`;
-    tr.innerHTML = `
-      <td>${r.predict_date}</td>
-      <td>${directionText[r.predicted_direction] || "-"}</td>
-      <td>${r.target_date || "-"}</td>
-      <td>${directionText[r.actual_direction] || "-"}</td>
-      <td>${guessTag}</td>
-    `;
-    bodyEl.appendChild(tr);
+    const opt = document.createElement("option");
+    opt.value = r.predict_date;
+    opt.textContent = r.predict_date;
+    selectEl.appendChild(opt);
   });
+
+  selectEl.onchange = () => {
+    const record = recent.find((r) => r.predict_date === selectEl.value);
+    renderTrackDateDetail(record, resultEl);
+  };
+
+  if (recent.length === 0) {
+    resultEl.innerHTML = `<div class="track-date-empty">目前還沒有累積到任何已驗證的預測記錄,持續運作一段時間後才會開始有資料可以查詢。</div>`;
+  } else {
+    // 預設顯示最新一筆(recent已經是新到舊排序,第一筆就是最新)
+    selectEl.value = recent[0].predict_date;
+    renderTrackDateDetail(recent[0], resultEl);
+  }
 }
 
 function renderTrackRecord(trackRecord) {
-  renderTrackRecordGeneric(trackRecord, trackSummaryEl, trackBodyEl);
+  renderTrackRecordGeneric(
+    trackRecord,
+    { totalEl: trackSummaryTotalEl, correctEl: trackSummaryCorrectEl, rateEl: trackSummaryRateEl },
+    trackDateSelectEl,
+    trackDateResultEl,
+  );
 }
 
 const ANOMALY_LABEL_MAP = { foreign: "外資", trust: "投信", dealer: "自營商" };
@@ -626,14 +653,15 @@ async function loadCompareTable(force = false) {
 }
 
 function renderMlPrediction(mlNextDay) {
+  const mlSummaryEls = { totalEl: mlTrackSummaryTotalEl, correctEl: mlTrackSummaryCorrectEl, rateEl: mlTrackSummaryRateEl };
+
   if (!mlNextDay || mlNextDay.up_pct === null || mlNextDay.up_pct === undefined) {
     mlStateLabelEl.textContent = mlNextDay?.state_label || "資料不足";
     mlBarUpEl.style.width = "50%";
     mlBarDownEl.style.width = "50%";
     mlUpPctEl.textContent = "-";
     mlDownPctEl.textContent = "-";
-    mlTrackInlineEl.textContent = "";
-    renderTrackRecordGeneric(mlNextDay?.track_record, mlTrackSummaryEl, mlTrackBodyEl);
+    renderTrackRecordGeneric(mlNextDay?.track_record, mlSummaryEls, mlTrackDateSelectEl, mlTrackDateResultEl);
     return;
   }
 
@@ -643,15 +671,7 @@ function renderMlPrediction(mlNextDay) {
   mlUpPctEl.textContent = mlNextDay.up_pct;
   mlDownPctEl.textContent = mlNextDay.down_pct;
 
-  const tr = mlNextDay.track_record;
-  if (tr && tr.resolved_count > 0) {
-    mlTrackInlineEl.textContent =
-      `實際命中率: ${tr.accuracy_pct}%(已驗證${tr.resolved_count}次,命中${tr.correct_count}次)`;
-  } else {
-    mlTrackInlineEl.textContent = "實際命中率: 尚未累積已驗證的記錄";
-  }
-
-  renderTrackRecordGeneric(tr, mlTrackSummaryEl, mlTrackBodyEl);
+  renderTrackRecordGeneric(mlNextDay.track_record, mlSummaryEls, mlTrackDateSelectEl, mlTrackDateResultEl);
 }
 
 async function loadStock(stockId) {
