@@ -186,10 +186,34 @@
             </div>
 
             <div class="track-lookup">
-              <label for="track-date-select">查詢某一天的預測結果:</label>
-              <select id="track-date-select"><option value="">請選擇日期</option></select>
+              <label>查詢某一天的預測結果:</label>
+              <select id="track-year-select"><option value="">年</option></select>
+              <select id="track-month-select"><option value="">月</option></select>
+              <select id="track-day-select"><option value="">日</option></select>
             </div>
             <div id="track-date-result" class="track-date-result"></div>
+
+            <details class="error-analysis-block">
+              <summary>猜錯的預測有沒有共同特徵?(誤判分析)</summary>
+              <div class="error-analysis-content">
+                <div class="error-analysis-group">
+                  <div class="error-analysis-group-title">依信心程度分組</div>
+                  <div id="track-confidence-breakdown" class="error-breakdown-list"></div>
+                </div>
+                <div class="error-analysis-group">
+                  <div class="error-analysis-group-title">依技術狀態匹配嚴格程度分組</div>
+                  <div id="track-match-breakdown" class="error-breakdown-list"></div>
+                </div>
+                <div class="error-analysis-group">
+                  <div class="error-analysis-group-title">當天新聞情緒是否極端</div>
+                  <div id="track-news-breakdown" class="error-breakdown-list"></div>
+                </div>
+                <p class="error-analysis-note">
+                  這是統計「猜錯的預測有沒有共同特徵」,不是去猜測某一天為什麼猜錯(那種原因無法驗證)。
+                  每組樣本數不多時,命中率差異可能只是巧合,需要更多資料才有參考價值。
+                </p>
+              </div>
+            </details>
 
             <p class="track-record-note">
               每個交易日網站會自動記錄當天做出的漲跌預測,隔天知道實際結果後自動回頭核對。
@@ -240,10 +264,34 @@
             </div>
 
             <div class="track-lookup">
-              <label for="ml-track-date-select">查詢某一天的預測結果:</label>
-              <select id="ml-track-date-select"><option value="">請選擇日期</option></select>
+              <label>查詢某一天的預測結果:</label>
+              <select id="ml-track-year-select"><option value="">年</option></select>
+              <select id="ml-track-month-select"><option value="">月</option></select>
+              <select id="ml-track-day-select"><option value="">日</option></select>
             </div>
             <div id="ml-track-date-result" class="track-date-result"></div>
+
+            <details class="error-analysis-block">
+              <summary>猜錯的預測有沒有共同特徵?(誤判分析)</summary>
+              <div class="error-analysis-content">
+                <div class="error-analysis-group">
+                  <div class="error-analysis-group-title">依信心程度分組</div>
+                  <div id="ml-confidence-breakdown" class="error-breakdown-list"></div>
+                </div>
+                <div class="error-analysis-group" id="ml-match-group" style="display:none">
+                  <div class="error-analysis-group-title">依技術狀態匹配嚴格程度分組</div>
+                  <div id="ml-match-breakdown" class="error-breakdown-list"></div>
+                </div>
+                <div class="error-analysis-group">
+                  <div class="error-analysis-group-title">當天新聞情緒是否極端</div>
+                  <div id="ml-news-breakdown" class="error-breakdown-list"></div>
+                </div>
+                <p class="error-analysis-note">
+                  這是統計「猜錯的預測有沒有共同特徵」,不是去猜測某一天為什麼猜錯(那種原因無法驗證)。
+                  每組樣本數不多時,命中率差異可能只是巧合,需要更多資料才有參考價值。
+                </p>
+              </div>
+            </details>
 
             <p class="track-record-note">
               跟上面統計法用同一套自動核對機制,但這是兩個完全獨立的紀錄,方便互相比較準確率。

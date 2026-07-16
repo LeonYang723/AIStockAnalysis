@@ -41,7 +41,9 @@ let sentimentChart, sentimentSeries;
 const trackSummaryTotalEl = document.getElementById("track-summary-total");
 const trackSummaryCorrectEl = document.getElementById("track-summary-correct");
 const trackSummaryRateEl = document.getElementById("track-summary-rate");
-const trackDateSelectEl = document.getElementById("track-date-select");
+const trackYearSelectEl = document.getElementById("track-year-select");
+const trackMonthSelectEl = document.getElementById("track-month-select");
+const trackDaySelectEl = document.getElementById("track-day-select");
 const trackDateResultEl = document.getElementById("track-date-result");
 const mlStateLabelEl = document.getElementById("ml-state-label");
 const mlBarUpEl = document.getElementById("ml-bar-up");
@@ -51,7 +53,9 @@ const mlDownPctEl = document.getElementById("ml-down-pct");
 const mlTrackSummaryTotalEl = document.getElementById("ml-track-summary-total");
 const mlTrackSummaryCorrectEl = document.getElementById("ml-track-summary-correct");
 const mlTrackSummaryRateEl = document.getElementById("ml-track-summary-rate");
-const mlTrackDateSelectEl = document.getElementById("ml-track-date-select");
+const mlTrackYearSelectEl = document.getElementById("ml-track-year-select");
+const mlTrackMonthSelectEl = document.getElementById("ml-track-month-select");
+const mlTrackDaySelectEl = document.getElementById("ml-track-day-select");
 const mlTrackDateResultEl = document.getElementById("ml-track-date-result");
 const instAnomalyBadgesEl = document.getElementById("inst-anomaly-badges");
 const overviewStockTitleEl = document.getElementById("overview-stock-title");
@@ -424,7 +428,121 @@ function renderTrackDateDetail(record, resultEl) {
   `;
 }
 
-function renderTrackRecordGeneric(trackRecord, summaryEls, selectEl, resultEl) {
+function renderBreakdownList(breakdown, listEl) {
+  listEl.innerHTML = "";
+  if (!breakdown || breakdown.length === 0) {
+    listEl.innerHTML = `<div class="error-breakdown-empty">目前樣本數不足,還無法分組統計</div>`;
+    return;
+  }
+  breakdown.forEach((item) => {
+    const row = document.createElement("div");
+    row.className = "error-breakdown-row";
+    const pct = item.accuracy_pct != null ? item.accuracy_pct : 0;
+    row.innerHTML = `
+      <span class="error-breakdown-label">${item.label}</span>
+      <div class="error-breakdown-bar-wrap"><div class="error-breakdown-bar" style="width:${pct}%"></div></div>
+      <span class="error-breakdown-value">${item.accuracy_pct != null ? item.accuracy_pct + "%" : "-"}(${item.correct}/${item.total})</span>
+    `;
+    listEl.appendChild(row);
+  });
+}
+
+function renderErrorAnalysis(errorAnalysis, els) {
+  const analysis = errorAnalysis || {};
+  renderBreakdownList(analysis.confidence_breakdown, els.confidenceEl);
+  renderBreakdownList(analysis.news_breakdown, els.newsEl);
+
+  if (els.matchEl) {
+    renderBreakdownList(analysis.match_level_breakdown, els.matchEl);
+  }
+  // ML模型的預測沒有match_level這個概念,分組結果會是空的,乾脆把整組隱藏,不要顯示「樣本不足」這種誤導的訊息
+  if (els.matchGroupEl) {
+    const hasMatchData = analysis.match_level_breakdown && analysis.match_level_breakdown.length > 0;
+    els.matchGroupEl.style.display = hasMatchData ? "" : "none";
+  }
+}
+
+function setupDateLookup(recent, yearEl, monthEl, dayEl, resultEl) {
+  // 建立「年 -> 月 -> 日」的巢狀結構,選單逐層過濾,累積很多筆記錄時也不會變成長長一串難找
+  const dateMap = {};
+  recent.forEach((r) => {
+    const [y, m, d] = r.predict_date.split("-");
+    if (!dateMap[y]) dateMap[y] = {};
+    if (!dateMap[y][m]) dateMap[y][m] = [];
+    dateMap[y][m].push(d);
+  });
+  const years = Object.keys(dateMap).sort((a, b) => b.localeCompare(a));
+
+  function populateYearSelect() {
+    yearEl.innerHTML = `<option value="">年</option>`;
+    years.forEach((y) => {
+      const opt = document.createElement("option");
+      opt.value = y;
+      opt.textContent = `${y}年`;
+      yearEl.appendChild(opt);
+    });
+  }
+
+  function populateMonthSelect(year) {
+    monthEl.innerHTML = `<option value="">月</option>`;
+    if (!year || !dateMap[year]) return;
+    Object.keys(dateMap[year]).sort((a, b) => b.localeCompare(a)).forEach((m) => {
+      const opt = document.createElement("option");
+      opt.value = m;
+      opt.textContent = `${parseInt(m, 10)}月`;
+      monthEl.appendChild(opt);
+    });
+  }
+
+  function populateDaySelect(year, month) {
+    dayEl.innerHTML = `<option value="">日</option>`;
+    if (!year || !month || !dateMap[year]?.[month]) return;
+    [...dateMap[year][month]].sort((a, b) => b.localeCompare(a)).forEach((d) => {
+      const opt = document.createElement("option");
+      opt.value = d;
+      opt.textContent = `${parseInt(d, 10)}日`;
+      dayEl.appendChild(opt);
+    });
+  }
+
+  function tryRenderSelection() {
+    const y = yearEl.value, m = monthEl.value, d = dayEl.value;
+    if (!y || !m || !d) {
+      renderTrackDateDetail(null, resultEl);
+      return;
+    }
+    const record = recent.find((r) => r.predict_date === `${y}-${m}-${d}`);
+    renderTrackDateDetail(record, resultEl);
+  }
+
+  populateYearSelect();
+  yearEl.onchange = () => {
+    populateMonthSelect(yearEl.value);
+    dayEl.innerHTML = `<option value="">日</option>`;
+    tryRenderSelection();
+  };
+  monthEl.onchange = () => {
+    populateDaySelect(yearEl.value, monthEl.value);
+    tryRenderSelection();
+  };
+  dayEl.onchange = tryRenderSelection;
+
+  if (recent.length === 0) {
+    resultEl.innerHTML = `<div class="track-date-empty">目前還沒有累積到任何已驗證的預測記錄,持續運作一段時間後才會開始有資料可以查詢。</div>`;
+    return;
+  }
+
+  // 預設選最新一筆(recent已經是新到舊排序,第一筆就是最新)
+  const [defaultY, defaultM, defaultD] = recent[0].predict_date.split("-");
+  populateMonthSelect(defaultY);
+  populateDaySelect(defaultY, defaultM);
+  yearEl.value = defaultY;
+  monthEl.value = defaultM;
+  dayEl.value = defaultD;
+  renderTrackDateDetail(recent[0], resultEl);
+}
+
+function renderTrackRecordGeneric(trackRecord, summaryEls, dateEls, resultEl, errorAnalysisEls) {
   const { totalEl, correctEl, rateEl } = summaryEls;
   const resolvedCount = trackRecord?.resolved_count || 0;
   const correctCount = trackRecord?.correct_count || 0;
@@ -435,27 +553,10 @@ function renderTrackRecordGeneric(trackRecord, summaryEls, selectEl, resultEl) {
   rateEl.textContent = accuracyPct != null ? `${accuracyPct}%` : "-";
 
   const recent = trackRecord?.recent || [];
+  setupDateLookup(recent, dateEls.yearEl, dateEls.monthEl, dateEls.dayEl, resultEl);
 
-  // 重建日期選單(每次切換股票都要重新填,避免殘留上一支股票的日期清單)
-  selectEl.innerHTML = `<option value="">請選擇日期</option>`;
-  recent.forEach((r) => {
-    const opt = document.createElement("option");
-    opt.value = r.predict_date;
-    opt.textContent = r.predict_date;
-    selectEl.appendChild(opt);
-  });
-
-  selectEl.onchange = () => {
-    const record = recent.find((r) => r.predict_date === selectEl.value);
-    renderTrackDateDetail(record, resultEl);
-  };
-
-  if (recent.length === 0) {
-    resultEl.innerHTML = `<div class="track-date-empty">目前還沒有累積到任何已驗證的預測記錄,持續運作一段時間後才會開始有資料可以查詢。</div>`;
-  } else {
-    // 預設顯示最新一筆(recent已經是新到舊排序,第一筆就是最新)
-    selectEl.value = recent[0].predict_date;
-    renderTrackDateDetail(recent[0], resultEl);
+  if (errorAnalysisEls) {
+    renderErrorAnalysis(trackRecord?.error_analysis, errorAnalysisEls);
   }
 }
 
@@ -463,8 +564,13 @@ function renderTrackRecord(trackRecord) {
   renderTrackRecordGeneric(
     trackRecord,
     { totalEl: trackSummaryTotalEl, correctEl: trackSummaryCorrectEl, rateEl: trackSummaryRateEl },
-    trackDateSelectEl,
+    { yearEl: trackYearSelectEl, monthEl: trackMonthSelectEl, dayEl: trackDaySelectEl },
     trackDateResultEl,
+    {
+      confidenceEl: document.getElementById("track-confidence-breakdown"),
+      matchEl: document.getElementById("track-match-breakdown"),
+      newsEl: document.getElementById("track-news-breakdown"),
+    },
   );
 }
 
@@ -661,6 +767,13 @@ async function loadCompareTable(force = false) {
 
 function renderMlPrediction(mlNextDay) {
   const mlSummaryEls = { totalEl: mlTrackSummaryTotalEl, correctEl: mlTrackSummaryCorrectEl, rateEl: mlTrackSummaryRateEl };
+  const mlDateEls = { yearEl: mlTrackYearSelectEl, monthEl: mlTrackMonthSelectEl, dayEl: mlTrackDaySelectEl };
+  const mlErrorAnalysisEls = {
+    confidenceEl: document.getElementById("ml-confidence-breakdown"),
+    matchEl: document.getElementById("ml-match-breakdown"),
+    matchGroupEl: document.getElementById("ml-match-group"),
+    newsEl: document.getElementById("ml-news-breakdown"),
+  };
 
   if (!mlNextDay || mlNextDay.up_pct === null || mlNextDay.up_pct === undefined) {
     mlStateLabelEl.textContent = mlNextDay?.state_label || "資料不足";
@@ -668,7 +781,7 @@ function renderMlPrediction(mlNextDay) {
     mlBarDownEl.style.width = "50%";
     mlUpPctEl.textContent = "-";
     mlDownPctEl.textContent = "-";
-    renderTrackRecordGeneric(mlNextDay?.track_record, mlSummaryEls, mlTrackDateSelectEl, mlTrackDateResultEl);
+    renderTrackRecordGeneric(mlNextDay?.track_record, mlSummaryEls, mlDateEls, mlTrackDateResultEl, mlErrorAnalysisEls);
     return;
   }
 
@@ -678,7 +791,7 @@ function renderMlPrediction(mlNextDay) {
   mlUpPctEl.textContent = mlNextDay.up_pct;
   mlDownPctEl.textContent = mlNextDay.down_pct;
 
-  renderTrackRecordGeneric(mlNextDay.track_record, mlSummaryEls, mlTrackDateSelectEl, mlTrackDateResultEl);
+  renderTrackRecordGeneric(mlNextDay.track_record, mlSummaryEls, mlDateEls, mlTrackDateResultEl, mlErrorAnalysisEls);
 }
 
 async function loadStock(stockId) {
