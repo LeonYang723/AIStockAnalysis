@@ -91,12 +91,106 @@ def add_new_prediction(log: list, predict_date: str, next_day_result: dict) -> l
         "up_pct": up_pct,
         "down_pct": next_day_result.get("down_pct"),
         "state_label": next_day_result.get("state_label"),
+        "match_level": next_day_result.get("match_level"),  # 統計法才有,ML模型會是None
         "target_date": None,
         "actual_direction": None,
         "correct": None,
         "resolved": False,
     })
     return log
+
+
+def _confidence_bucket(entry: dict) -> str:
+    """依預測機率離50/50有多遠,分成低/中/高信心三組"""
+    up_pct = entry.get("up_pct")
+    if up_pct is None:
+        return "未知"
+    margin = abs(up_pct - 50)
+    if margin < 5:
+        return "低信心(接近50/50)"
+    if margin < 15:
+        return "中信心"
+    return "高信心(機率差距大)"
+
+
+def _breakdown_by(resolved: list, key_func) -> list:
+    """通用的分組統計: 依key_func分組,算每組的樣本數/命中數/命中率"""
+    groups = {}
+    for entry in resolved:
+        key = key_func(entry)
+        if key is None:
+            continue
+        if key not in groups:
+            groups[key] = {"total": 0, "correct": 0}
+        groups[key]["total"] += 1
+        if entry.get("correct"):
+            groups[key]["correct"] += 1
+
+    result = []
+    for key, stats in groups.items():
+        accuracy_pct = round(stats["correct"] / stats["total"] * 100, 1) if stats["total"] > 0 else None
+        result.append({
+            "label": key,
+            "total": stats["total"],
+            "correct": stats["correct"],
+            "accuracy_pct": accuracy_pct,
+        })
+    # 樣本數多的排前面,比較有參考價值的分組先看到
+    result.sort(key=lambda r: r["total"], reverse=True)
+    return result
+
+
+def analyze_errors(log: list, sentiment_log: list = None) -> dict:
+    """
+    誤判分析: 不去猜測「某一天為什麼猜錯」這種無法驗證的事,
+    而是統計「猜錯的預測,有沒有某些共同特徵」,這是可以驗證、有資料支撐的分析。
+
+    回傳三種分組統計:
+      1. confidence_breakdown: 依信心程度(機率離50/50多遠)分組的命中率
+      2. match_level_breakdown: 依統計法的樣本匹配嚴格程度分組的命中率(只有統計法有這個欄位)
+      3. news_breakdown: 依當天新聞情緒是否「極端」分組的命中率(需要有新聞情緒記錄才能比對)
+    """
+    resolved = [e for e in log if e.get("resolved")]
+    if not resolved:
+        return {
+            "sample_size": 0,
+            "confidence_breakdown": [],
+            "match_level_breakdown": [],
+            "news_breakdown": [],
+        }
+
+    confidence_breakdown = _breakdown_by(resolved, _confidence_bucket)
+
+    # match_level 只有統計法的紀錄才有這個欄位,ML模型的紀錄會全部是None,分組結果自然是空的
+    match_level_label_map = {
+        "rsi_and_ma": "RSI+均線雙條件都符合",
+        "rsi_only": "只符合RSI(樣本不足退回)",
+        "all_history": "樣本嚴重不足(退回全歷史平均)",
+    }
+    match_level_breakdown = _breakdown_by(
+        resolved, lambda e: match_level_label_map.get(e.get("match_level"))
+    )
+
+    # 新聞情緒交叉比對: 當天(predict_date)新聞情緒分數的絕對值 >= 0.5 算「極端」,
+    # 分數不知道(沒有累積到那天的新聞情緒記錄)的預測不列入這個分組
+    news_breakdown = []
+    if sentiment_log:
+        sentiment_lookup = {s["date"]: s.get("score") for s in sentiment_log}
+
+        def news_bucket(entry):
+            score = sentiment_lookup.get(entry["predict_date"])
+            if score is None:
+                return None
+            return "當天新聞情緒極端" if abs(score) >= 0.5 else "當天新聞情緒平常"
+
+        news_breakdown = _breakdown_by(resolved, news_bucket)
+
+    return {
+        "sample_size": len(resolved),
+        "confidence_breakdown": confidence_breakdown,
+        "match_level_breakdown": match_level_breakdown,
+        "news_breakdown": news_breakdown,
+    }
 
 
 def compute_track_record(log: list) -> dict:

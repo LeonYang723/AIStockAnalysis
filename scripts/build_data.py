@@ -38,7 +38,9 @@ from news_sentiment_log import (
     save_log as news_sentiment_save_log,
     add_daily_entry as news_sentiment_add_daily_entry,
 )
-from prediction_tracker import load_log, save_log, resolve_pending, add_new_prediction, compute_track_record
+from prediction_tracker import (
+    load_log, save_log, resolve_pending, add_new_prediction, compute_track_record, analyze_errors,
+)
 
 OUTPUT_DIR_ABS = os.path.join(REPO_ROOT, OUTPUT_DIR)
 
@@ -180,10 +182,11 @@ def build_one(stock_id: str, token: str = None, stock_name: str = None, market_d
 
         save_log(pred_log_path, pred_log)
         track_record = compute_track_record(pred_log)
+        track_record["error_analysis"] = analyze_errors(pred_log, sentiment_log=sentiment_log)
     except Exception as e:
         print(f"  預測準確率追蹤失敗({stock_id}): {e}")
         track_record = {"total_predictions": 0, "resolved_count": 0, "correct_count": 0,
-                         "accuracy_pct": None, "recent": []}
+                         "accuracy_pct": None, "recent": [], "error_analysis": None}
 
     next_day["track_record"] = track_record
 
@@ -211,10 +214,11 @@ def build_one(stock_id: str, token: str = None, stock_name: str = None, market_d
 
         save_log(ml_log_path, ml_log)
         ml_track_record = compute_track_record(ml_log)
+        ml_track_record["error_analysis"] = analyze_errors(ml_log, sentiment_log=sentiment_log)
     except Exception as e:
         print(f"  ML預測準確率追蹤失敗({stock_id}): {e}")
         ml_track_record = {"total_predictions": 0, "resolved_count": 0, "correct_count": 0,
-                            "accuracy_pct": None, "recent": []}
+                            "accuracy_pct": None, "recent": [], "error_analysis": None}
 
     ml_next_day["track_record"] = ml_track_record
     analysis = {"narrative": narrative, "next_day": next_day, "next_day_ml": ml_next_day}
