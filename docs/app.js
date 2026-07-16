@@ -1,5 +1,51 @@
 // docs/app.js
 
+// ---------- 簡易密碼保護 ----------
+// 這只是擋住畫面顯示,不是真正的存取控制:GitHub Pages是純靜態網站,
+// 沒有伺服器可以做驗證,docs/data/*.json這些資料檔案本身的網址依然是公開的,
+// 只是用來擋掉不知道密碼、隨手點開連結的人,不是防駭客等級的安全機制。
+const AUTH_PASSWORD_HASH = "df67c4a482990d712cd13dabc4a114ba6651f6c852ca2c4e43bbbd8ccfcb7072";
+const AUTH_SESSION_KEY = "ai_stock_authed";
+
+async function sha256Hex(text) {
+  const data = new TextEncoder().encode(text);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hashBuffer)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function initLoginGate() {
+  const overlay = document.getElementById("login-overlay");
+  const input = document.getElementById("login-password-input");
+  const submitBtn = document.getElementById("login-submit-btn");
+  const errorMsg = document.getElementById("login-error-msg");
+
+  // 同一個分頁驗證過一次後,關掉分頁前都不用再輸入(存在sessionStorage,不是永久記住)
+  if (sessionStorage.getItem(AUTH_SESSION_KEY) === "1") {
+    overlay.style.display = "none";
+    return;
+  }
+
+  async function tryLogin() {
+    const hash = await sha256Hex(input.value);
+    if (hash === AUTH_PASSWORD_HASH) {
+      sessionStorage.setItem(AUTH_SESSION_KEY, "1");
+      overlay.style.display = "none";
+    } else {
+      errorMsg.textContent = "密碼錯誤,請再試一次";
+      input.value = "";
+      input.focus();
+    }
+  }
+
+  submitBtn.addEventListener("click", tryLogin);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") tryLogin();
+  });
+  input.focus();
+}
+
+initLoginGate();
+
 const MA_COLORS = {
   MA5: "#f2b705",
   MA10: "#4d8dff",
