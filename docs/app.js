@@ -9,7 +9,7 @@ const AUTH_PASSWORD_HASH = "df67c4a482990d712cd13dabc4a114ba6651f6c852ca2c4e43bb
 const AUTH_SESSION_KEY = "ai_stock_authed";
 
 // 換成你部署 Apps Script 後拿到的網址(/exec結尾那個),沒換之前OTP這關不會動作
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbypO5NX4hohaEnLgrKx8jvkq7PnktIJh54b5i5XAo50fblNFV5RD1kOOXBllRiS-E74/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec";
 
 async function sha256Hex(text) {
   const data = new TextEncoder().encode(text);
@@ -415,6 +415,29 @@ function setActivePage(page) {
     loadUsNews();
   }
 }
+
+// ---------- 財經新聞頁: 美股/國內 分類按鈕切換 ----------
+function setNewsSubTab(tab) {
+  const usGroup = document.getElementById("news-sub-us");
+  const twGroup = document.getElementById("news-sub-tw");
+  const usBtn = document.getElementById("news-tab-us");
+  const twBtn = document.getElementById("news-tab-tw");
+
+  usGroup.style.display = tab === "us" ? "" : "none";
+  twGroup.style.display = tab === "tw" ? "" : "none";
+  usBtn.classList.toggle("active", tab === "us");
+  twBtn.classList.toggle("active", tab === "tw");
+
+  // 國內分頁裡的新聞情緒趨勢圖,切回可見狀態時容器寬高才會正確,這時候要重新resize一次
+  if (tab === "tw" && sentimentChart) {
+    requestAnimationFrame(() => {
+      sentimentChart.resize(sentimentChartEl.clientWidth, sentimentChartEl.clientHeight);
+    });
+  }
+}
+
+document.getElementById("news-tab-us").addEventListener("click", () => setNewsSubTab("us"));
+document.getElementById("news-tab-tw").addEventListener("click", () => setNewsSubTab("tw"));
 
 function syncTimeScales(source, target) {
   source.timeScale().subscribeVisibleLogicalRangeChange((range) => {
@@ -1123,4 +1146,5 @@ initCharts();
 // 一定要在 initCharts() 之後才切換分頁可見度:
 // 圖表建立當下需要容器有實際寬高,這時候三個分頁都還是可見的,寬高才會正確量到。
 setActivePage("overview");
+setNewsSubTab("us");
 loadManifestAndInit();

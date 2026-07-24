@@ -411,61 +411,70 @@
       </section>
     </div>
 
-    <!-- ===== 頁面4: 財經新聞(關鍵字利多/利空比對) ===== -->
+    <!-- ===== 頁面4: 財經新聞(美股/國內分類按鈕) ===== -->
     <div class="page-group" data-page="news">
-      <section class="chart-section">
-        <div class="chart-header">
-          <span>🇺🇸 美股新聞(翻譯)</span>
-          <span id="us-news-updated" class="news-total"></span>
-        </div>
-        <ul id="us-news-list" class="news-list"></ul>
-        <p class="overview-note">
-          資料來源: Finnhub,原文為英文,標題透過離線翻譯工具自動翻成中文,
-          翻譯僅供參考,可能不夠精準,正確內容請點連結看英文原文。
-          這是市場層級的頭條,不分個股,所有股票共用同一份。
-        </p>
-      </section>
+      <div class="news-tab-buttons">
+        <button type="button" id="news-tab-us" class="news-tab-btn">🇺🇸 美股新聞</button>
+        <button type="button" id="news-tab-tw" class="news-tab-btn">🇹🇼 國內新聞</button>
+      </div>
 
-      <section class="chart-section">
-        <div class="chart-header">
-          <span>🇹🇼 國內新聞情緒趨勢(每日累積)</span>
-          <span id="sentiment-history-total" class="news-total"></span>
-        </div>
-        <div id="sentiment-chart" class="chart-box sentiment-chart"></div>
-        <p class="overview-note">
-          每個交易日網站會自動記錄當天的新聞氣氛分數(-1代表當天新聞全是利空關鍵字,+1代表全是利多關鍵字)。
-          累積到約一年份的交易日之後,這份歷史就會自動被納入ML模型的訓練特徵。
-        </p>
-      </section>
+      <div id="news-sub-us" class="news-sub-group">
+        <section class="chart-section">
+          <div class="chart-header">
+            <span>🇺🇸 美股新聞(翻譯)</span>
+            <span id="us-news-updated" class="news-total"></span>
+          </div>
+          <ul id="us-news-list" class="news-list"></ul>
+          <p class="overview-note">
+            資料來源: Finnhub,原文為英文,標題透過離線翻譯工具自動翻成繁體中文,
+            翻譯僅供參考,可能不夠精準,正確內容請點連結看英文原文。
+            這是市場層級的頭條,不分個股,所有股票共用同一份。
+          </p>
+        </section>
+      </div>
 
-      <section class="chart-section">
-        <div class="chart-header">
-          <span>🇹🇼 國內新聞整體氣氛(關鍵字比對)</span>
-          <span id="news-total" class="news-total"></span>
-        </div>
-        <div class="news-summary-bar">
-          <div id="news-bar-pos" class="news-bar-pos"></div>
-          <div id="news-bar-neu" class="news-bar-neu"></div>
-          <div id="news-bar-neg" class="news-bar-neg"></div>
-        </div>
-        <div class="news-summary-legend">
-          <span class="news-pos-text">利多 <b id="news-pos-count">-</b> 則</span>
-          <span class="news-neu-text">中性 <b id="news-neu-count">-</b> 則</span>
-          <span class="news-neg-text">利空 <b id="news-neg-count">-</b> 則</span>
-        </div>
-        <p class="news-disclaimer">
-          這不是AI理解新聞內容後的摘要,只是單純統計新聞標題裡出現了幾個「利多/利空關鍵字」,
-          屬於粗略的字面比對,無法辨識反諷、疑問句等語意,也可能誤判同時提到成長與衰退的新聞。
-          僅供參考,不構成投資建議。
-        </p>
-      </section>
+      <div id="news-sub-tw" class="news-sub-group">
+        <section class="chart-section">
+          <div class="chart-header">
+            <span>🇹🇼 國內新聞情緒趨勢(每日累積)</span>
+            <span id="sentiment-history-total" class="news-total"></span>
+          </div>
+          <div id="sentiment-chart" class="chart-box sentiment-chart"></div>
+          <p class="overview-note">
+            每個交易日網站會自動記錄當天的新聞氣氛分數(-1代表當天新聞全是利空關鍵字,+1代表全是利多關鍵字)。
+            累積到約一年份的交易日之後,這份歷史就會自動被納入ML模型的訓練特徵。
+          </p>
+        </section>
 
-      <section class="chart-section">
-        <div class="chart-header">
-          <span>🇹🇼 國內相關新聞列表</span>
-        </div>
-        <ul id="news-list" class="news-list"></ul>
-      </section>
+        <section class="chart-section">
+          <div class="chart-header">
+            <span>🇹🇼 國內新聞整體氣氛(關鍵字比對)</span>
+            <span id="news-total" class="news-total"></span>
+          </div>
+          <div class="news-summary-bar">
+            <div id="news-bar-pos" class="news-bar-pos"></div>
+            <div id="news-bar-neu" class="news-bar-neu"></div>
+            <div id="news-bar-neg" class="news-bar-neg"></div>
+          </div>
+          <div class="news-summary-legend">
+            <span class="news-pos-text">利多 <b id="news-pos-count">-</b> 則</span>
+            <span class="news-neu-text">中性 <b id="news-neu-count">-</b> 則</span>
+            <span class="news-neg-text">利空 <b id="news-neg-count">-</b> 則</span>
+          </div>
+          <p class="news-disclaimer">
+            這不是AI理解新聞內容後的摘要,只是單純統計新聞標題裡出現了幾個「利多/利空關鍵字」,
+            屬於粗略的字面比對,無法辨識反諷、疑問句等語意,也可能誤判同時提到成長與衰退的新聞。
+            僅供參考,不構成投資建議。
+          </p>
+        </section>
+
+        <section class="chart-section">
+          <div class="chart-header">
+            <span>🇹🇼 國內相關新聞列表</span>
+          </div>
+          <ul id="news-list" class="news-list"></ul>
+        </section>
+      </div>
     </div>
   </main>
 
