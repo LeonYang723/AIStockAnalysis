@@ -415,7 +415,20 @@
     <div class="page-group" data-page="news">
       <section class="chart-section">
         <div class="chart-header">
-          <span>新聞情緒趨勢(每日累積)</span>
+          <span>🇺🇸 美股新聞(翻譯)</span>
+          <span id="us-news-updated" class="news-total"></span>
+        </div>
+        <ul id="us-news-list" class="news-list"></ul>
+        <p class="overview-note">
+          資料來源: Finnhub,原文為英文,標題透過離線翻譯工具自動翻成中文,
+          翻譯僅供參考,可能不夠精準,正確內容請點連結看英文原文。
+          這是市場層級的頭條,不分個股,所有股票共用同一份。
+        </p>
+      </section>
+
+      <section class="chart-section">
+        <div class="chart-header">
+          <span>🇹🇼 國內新聞情緒趨勢(每日累積)</span>
           <span id="sentiment-history-total" class="news-total"></span>
         </div>
         <div id="sentiment-chart" class="chart-box sentiment-chart"></div>
@@ -427,7 +440,7 @@
 
       <section class="chart-section">
         <div class="chart-header">
-          <span>新聞整體氣氛(關鍵字比對)</span>
+          <span>🇹🇼 國內新聞整體氣氛(關鍵字比對)</span>
           <span id="news-total" class="news-total"></span>
         </div>
         <div class="news-summary-bar">
@@ -449,7 +462,7 @@
 
       <section class="chart-section">
         <div class="chart-header">
-          <span>相關新聞列表</span>
+          <span>🇹🇼 國內相關新聞列表</span>
         </div>
         <ul id="news-list" class="news-list"></ul>
       </section>

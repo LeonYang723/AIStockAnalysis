@@ -9,7 +9,7 @@ const AUTH_PASSWORD_HASH = "df67c4a482990d712cd13dabc4a114ba6651f6c852ca2c4e43bb
 const AUTH_SESSION_KEY = "ai_stock_authed";
 
 // 換成你部署 Apps Script 後拿到的網址(/exec結尾那個),沒換之前OTP這關不會動作
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbypO5NX4hohaEnLgrKx8jvkq7PnktIJh54b5i5XAo50fblNFV5RD1kOOXBllRiS-E74/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec";
 
 async function sha256Hex(text) {
   const data = new TextEncoder().encode(text);
@@ -411,6 +411,9 @@ function setActivePage(page) {
   if (page === "compare") {
     loadCompareTable();
   }
+  if (page === "news") {
+    loadUsNews();
+  }
 }
 
 function syncTimeScales(source, target) {
@@ -517,6 +520,52 @@ function renderAnalysis(analysis) {
 }
 
 const SENTIMENT_TAG_CLASS = { "利多": "pos", "利空": "neg", "中性": "neu" };
+
+let usNewsLoaded = false;
+
+async function loadUsNews() {
+  // 美股新聞不分股票、不會因為切換股票而改變,只需要抓一次
+  if (usNewsLoaded) return;
+  const listEl = document.getElementById("us-news-list");
+  const updatedEl = document.getElementById("us-news-updated");
+
+  try {
+    const res = await fetch(`data/us_news.json?t=${Date.now()}`);
+    if (!res.ok) {
+      listEl.innerHTML = `<li>目前沒有美股新聞資料(可能尚未設定Finnhub API金鑰,或抓取失敗)</li>`;
+      return;
+    }
+    const data = await res.json();
+    updatedEl.textContent = `資料更新: ${formatTaiwanTime(data.updated_at)}`;
+
+    listEl.innerHTML = "";
+    const articles = data.articles || [];
+    if (articles.length === 0) {
+      listEl.innerHTML = `<li>目前沒有美股新聞資料</li>`;
+      return;
+    }
+    articles.forEach((a) => {
+      const li = document.createElement("li");
+      const titleLink = document.createElement("a");
+      titleLink.className = "news-item-title";
+      titleLink.href = a.link || "#";
+      titleLink.target = "_blank";
+      titleLink.rel = "noopener noreferrer";
+      titleLink.textContent = a.title_zh || a.title_en;
+
+      const meta = document.createElement("span");
+      meta.className = "news-item-meta";
+      meta.textContent = `${a.source || ""} · ${formatTaiwanTime(a.date)}`;
+
+      li.appendChild(titleLink);
+      li.appendChild(meta);
+      listEl.appendChild(li);
+    });
+    usNewsLoaded = true;
+  } catch (err) {
+    listEl.innerHTML = `<li>美股新聞載入失敗,請稍後再試</li>`;
+  }
+}
 
 function renderSentimentHistory(news) {
   const history = news?.sentiment_history || [];
