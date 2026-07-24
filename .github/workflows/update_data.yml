@@ -31,6 +31,7 @@ jobs:
       - name: Fetch data and build JSON
         env:
           FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
+          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
         run: python scripts/build_data.py
 
       - name: Commit and push updated data
