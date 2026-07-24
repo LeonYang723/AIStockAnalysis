@@ -7,11 +7,15 @@
 不會保留上次下載的模型,所以每次執行都要重新下載,會讓這個步驟多花幾十秒到一兩分鐘,
 這是離線翻譯換來的取捨(不用金鑰,但每次都要重新下載模型)。
 
+Argos的英文->中文模型輸出的是簡體字,翻譯完之後會再用 OpenCC 轉成繁體中文
+(台灣慣用詞版本,例如「软件」會轉成「軟體」而不是只轉成「軟件」)。
+
 如果 Argos Translate 沒有安裝成功、或下載模型失敗,翻譯會直接失敗並拋出例外,
 呼叫端(build_data.py)要用 try/except 接住,退回顯示英文原文,不要讓整個程式掛掉。
 """
 
 _translator_ready = False
+_opencc_converter = None
 
 
 def _ensure_translator_installed():
@@ -44,15 +48,35 @@ def _ensure_translator_installed():
     _translator_ready = True
 
 
+def _get_opencc_converter():
+    """惰性初始化OpenCC轉換器(簡體->繁體,台灣慣用詞),只需要建立一次重複使用"""
+    global _opencc_converter
+    if _opencc_converter is None:
+        from opencc import OpenCC
+        _opencc_converter = OpenCC("s2twp")  # 簡體 -> 繁體中文(台灣標準,含慣用詞轉換)
+    return _opencc_converter
+
+
+def _to_traditional(text: str) -> str:
+    """把簡體字轉成繁體中文,轉換失敗就直接回傳原文,不要讓這一步拖垮整個翻譯流程"""
+    if not text:
+        return text
+    try:
+        return _get_opencc_converter().convert(text)
+    except Exception:
+        return text
+
+
 def translate_en_to_zh(text: str) -> str:
-    """翻譯單一段文字,英文->繁體/簡體中文(Argos的zh模型通常是簡體,顯示上不影響閱讀)"""
+    """翻譯單一段文字,英文->繁體中文"""
     if not text:
         return text
 
     _ensure_translator_installed()
 
     import argostranslate.translate
-    return argostranslate.translate.translate(text, "en", "zh")
+    simplified = argostranslate.translate.translate(text, "en", "zh")
+    return _to_traditional(simplified)
 
 
 def translate_titles(titles: list) -> list:
