@@ -57,13 +57,20 @@ def _get_opencc_converter():
     return _opencc_converter
 
 
+_opencc_failed_logged = False
+
+
 def _to_traditional(text: str) -> str:
     """把簡體字轉成繁體中文,轉換失敗就直接回傳原文,不要讓這一步拖垮整個翻譯流程"""
+    global _opencc_failed_logged
     if not text:
         return text
     try:
         return _get_opencc_converter().convert(text)
-    except Exception:
+    except Exception as e:
+        if not _opencc_failed_logged:
+            print(f"    [美股新聞翻譯] OpenCC繁體轉換失敗,退回顯示簡體: {e}")
+            _opencc_failed_logged = True
         return text
 
 
