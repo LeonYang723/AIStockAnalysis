@@ -47,5 +47,8 @@ NEWS_SENTIMENT_MIN_FOR_ML = 250
 # 三大法人連續買超/賣超超過幾天算是「異常」,要標記出來提醒
 ANOMALY_STREAK_THRESHOLD = 3
 
+# 美股新聞(Finnhub) 最多保留幾篇,翻譯成中文後顯示,所有股票共用同一份(不分個股)
+US_NEWS_MAX_ARTICLES = 15
+
 # 輸出JSON存放位置(GitHub Pages 會發布 docs/ 目錄)
 OUTPUT_DIR = "docs/data"

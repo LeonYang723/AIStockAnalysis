@@ -22,13 +22,14 @@ REPO_ROOT = os.path.dirname(SCRIPT_DIR)
 from config import (
     STOCK_LIST, LOOKBACK_DAYS, RSI_PERIODS, MA_WINDOWS, FUNDAMENTALS_QUARTERS,
     ANALYSIS_LOOKBACK_YEARS, NEWS_LOOKBACK_DAYS, NEWS_MAX_ARTICLES, NEWS_TODAY_MAX_ARTICLES,
-    ANOMALY_STREAK_THRESHOLD, NEWS_SENTIMENT_MIN_FOR_ML, OUTPUT_DIR,
+    ANOMALY_STREAK_THRESHOLD, NEWS_SENTIMENT_MIN_FOR_ML, US_NEWS_MAX_ARTICLES, OUTPUT_DIR,
 )
 from data_fetcher import (
     get_stock_price, get_institutional_investors, get_margin_trading,
     get_valuation_ratios, get_financial_statements, get_balance_sheet, get_cash_flow,
-    get_stock_names, get_stock_news, get_market_index,
+    get_stock_names, get_stock_news, get_market_index, get_us_market_news,
 )
+from us_news_translate import translate_titles
 from indicators import add_moving_averages, add_rsi_columns
 from analysis import generate_trend_narrative, compute_next_day_probability, compute_streak, get_latest_state
 from ml_model import train_and_predict as ml_train_and_predict
@@ -358,6 +359,35 @@ def main():
     except Exception as e:
         print(f"大盤加權指數抓取失敗(ML模型會少一組特徵,不影響其他功能): {e}")
         market_df = None
+
+    # 美股新聞不分個股,是市場層級的頭條,只需要抓一次+翻譯一次,存成獨立檔案給所有股票共用
+    try:
+        finnhub_token = os.environ.get("FINNHUB_API_KEY", "")
+        us_news_df = get_us_market_news(finnhub_token, max_articles=US_NEWS_MAX_ARTICLES)
+        print(f"已取得美股新聞,共 {len(us_news_df)} 篇,開始翻譯...")
+
+        titles_zh = translate_titles(us_news_df["title"].tolist())
+        print("美股新聞翻譯完成")
+
+        us_news_articles = []
+        for (_, row), title_zh in zip(us_news_df.iterrows(), titles_zh):
+            us_news_articles.append({
+                "date": row["date"].isoformat(),
+                "title_en": row["title"],
+                "title_zh": title_zh,
+                "source": row["source"],
+                "link": row["link"],
+            })
+
+        us_news_path = os.path.join(OUTPUT_DIR_ABS, "us_news.json")
+        with open(us_news_path, "w", encoding="utf-8") as f:
+            json.dump({
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "articles": us_news_articles,
+            }, f, ensure_ascii=False)
+        print(f"已輸出美股新聞: {us_news_path}")
+    except Exception as e:
+        print(f"美股新聞抓取或翻譯失敗(不影響其他功能): {e}")
 
     manifest = []
     manifest_names = {}

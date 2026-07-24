@@ -287,6 +287,36 @@ def get_market_index(start_date: str, end_date: str, token: str = None) -> pd.Da
     df = df.rename(columns={"close": "market_close"})
     return df[["date", "market_close"]]
 
+
+def get_us_market_news(finnhub_token: str, max_articles: int = 15) -> pd.DataFrame:
+    """
+    取得美股大盤新聞(不分個股,是市場層級的頭條),來源是 Finnhub 官方API。
+    跟 FinMind 完全獨立,需要另外申請 Finnhub 的免費API金鑰。
+
+    回傳欄位: date(UTC), title(英文原文), source, link
+    """
+    if not finnhub_token:
+        raise ValueError("缺少 FINNHUB_API_KEY,無法抓取美股新聞")
+
+    url = "https://finnhub.io/api/v1/news"
+    params = {"category": "general", "token": finnhub_token}
+
+    resp = requests.get(url, params=params, timeout=20)
+    resp.raise_for_status()
+    data = resp.json()
+
+    if not isinstance(data, list) or len(data) == 0:
+        raise ValueError("Finnhub 美股新聞查無資料")
+
+    df = pd.DataFrame(data)
+    # Finnhub回傳的datetime欄位是Unix時間戳(秒),而且是UTC
+    df["date"] = pd.to_datetime(df["datetime"], unit="s", utc=True)
+    df = df.sort_values("date", ascending=False).reset_index(drop=True)
+    df = df.rename(columns={"headline": "title", "url": "link"})
+    df = df.drop_duplicates(subset=["title", "link"], keep="first")
+    df = df.head(max_articles)
+    return df[["date", "title", "source", "link"]]
+
 # 註: 曾嘗試加入「主力買賣(券商分點)」功能,對應 FinMind 的
 # TaiwanStockTradingDailyReport 資料集,但該資料集是付費 Sponsor 方案專屬,
 # 免費/一般註冊帳號的 token 都無法存取(會回傳 400)。
