@@ -777,7 +777,9 @@ function setupCalendarLookup(recent, calEls, resultEl) {
       cell.textContent = day;
 
       if (daysWithData.has(dayStr)) {
-        cell.className = "track-cal-cell has-data" + (fullDate === selectedDate ? " selected" : "");
+        const record = recordByDate[fullDate];
+        const resultClass = record && record.correct ? "hit" : "miss";
+        cell.className = `track-cal-cell has-data ${resultClass}` + (fullDate === selectedDate ? " selected" : "");
         cell.addEventListener("click", () => {
           selectedDate = fullDate;
           summaryEl.textContent = fullDate;

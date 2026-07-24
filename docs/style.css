@@ -533,19 +533,58 @@ main {
 
 .track-cal-cell.has-data {
   color: var(--text);
-  background: rgba(77, 141, 255, 0.14);
   cursor: pointer;
 }
 
-.track-cal-cell.has-data:hover {
-  background: rgba(77, 141, 255, 0.28);
+/* 猜中: 紅色系(跟其他地方「猜中」用紅色的慣例一致) */
+.track-cal-cell.has-data.hit {
+  background: rgba(214, 56, 46, 0.22);
 }
 
-.track-cal-cell.selected {
+.track-cal-cell.has-data.hit:hover {
+  background: rgba(214, 56, 46, 0.36);
+}
+
+/* 猜錯: 灰色系(跟其他地方「猜錯」用灰色的慣例一致) */
+.track-cal-cell.has-data.miss {
+  background: rgba(139, 143, 154, 0.20);
+}
+
+.track-cal-cell.has-data.miss:hover {
+  background: rgba(139, 143, 154, 0.34);
+}
+
+/* 目前選中的日期: 用3個class的選擇器,確保能蓋過上面猜中/猜錯的背景色 */
+.track-cal-cell.has-data.selected {
   background: var(--accent);
   color: #fff;
   font-weight: 600;
 }
+
+.track-calendar-legend {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.track-calendar-legend span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  font-style: normal;
+}
+
+.legend-dot-hit { background: rgba(214, 56, 46, 0.55); }
+.legend-dot-miss { background: rgba(139, 143, 154, 0.55); }
 
 .track-date-result {
   min-height: 20px;
