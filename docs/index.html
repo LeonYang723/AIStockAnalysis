@@ -355,6 +355,102 @@
             </p>
           </div>
         </div>
+
+        <div class="prob-block">
+          <div class="prob-header">
+            <span>隔日漲跌機率(統計法 × ML模型 綜合預測)</span>
+            <span id="combined-state-label" class="prob-state-label"></span>
+          </div>
+          <div class="prob-bar-wrap">
+            <div class="prob-bar">
+              <div id="combined-bar-up" class="prob-bar-up"></div>
+              <div id="combined-bar-down" class="prob-bar-down"></div>
+            </div>
+          </div>
+          <div class="prob-legend">
+            <span class="prob-up-text">上漲 <b id="combined-up-pct">-</b>%</span>
+            <span class="prob-down-text">下跌 <b id="combined-down-pct">-</b>%</span>
+            <span id="combined-weight-note" class="prob-sample"></span>
+          </div>
+          <div id="combined-agreement-badge" class="agree-badge" style="display:none"></div>
+          <p class="prob-disclaimer">
+            這不是另外訓練的第三個模型,而是把上面兩種方法的機率,依「統計法目前的比對嚴格程度/樣本數」
+            與「ML模型自己最近60天的回測準確率」換算成信心權重後加權平均。當兩種方法看法分歧時,
+            加權平均的參考價值本來就會下降,上面的提示會直接標示出來,而不是被平均數字蓋過去。
+            跟前兩者一樣,獨立累積自己的命中率,可與統計法、ML模型互相比較準確率,僅供參考,不構成投資建議。
+          </p>
+
+          <div class="track-record-block">
+            <div class="track-record-header">
+              <span>這個綜合預測過去猜得準不準?(自動追蹤驗證)</span>
+            </div>
+
+            <div class="track-summary-card">
+              <div class="track-summary-item">
+                <div class="track-summary-label">累積次數</div>
+                <div id="combined-track-summary-total" class="track-summary-value">-</div>
+              </div>
+              <div class="track-summary-item">
+                <div class="track-summary-label">命中次數</div>
+                <div id="combined-track-summary-correct" class="track-summary-value">-</div>
+              </div>
+              <div class="track-summary-item track-summary-item-highlight">
+                <div class="track-summary-label">命中率</div>
+                <div id="combined-track-summary-rate" class="track-summary-value track-summary-value-lg">-</div>
+              </div>
+            </div>
+
+            <div class="track-lookup">
+              <label>查詢某一天的預測結果:</label>
+              <details id="combined-track-calendar-details" class="track-calendar-details">
+                <summary id="combined-track-calendar-summary">請選擇日期</summary>
+                <div class="track-calendar">
+                  <div class="track-calendar-header">
+                    <button type="button" id="combined-track-cal-prev" class="track-calendar-nav">‹</button>
+                    <span id="combined-track-cal-month-label" class="track-calendar-month-label"></span>
+                    <button type="button" id="combined-track-cal-next" class="track-calendar-nav">›</button>
+                  </div>
+                  <div class="track-calendar-weekdays">
+                    <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+                  </div>
+                  <div id="combined-track-cal-grid" class="track-calendar-grid"></div>
+                  <div class="track-calendar-legend">
+                    <span><i class="legend-dot legend-dot-hit"></i>猜中</span>
+                    <span><i class="legend-dot legend-dot-miss"></i>猜錯</span>
+                  </div>
+                </div>
+              </details>
+            </div>
+            <div id="combined-track-date-result" class="track-date-result"></div>
+
+            <details class="error-analysis-block">
+              <summary>猜錯的預測有沒有共同特徵?(誤判分析)</summary>
+              <div class="error-analysis-content">
+                <div class="error-analysis-group">
+                  <div class="error-analysis-group-title">依信心程度分組</div>
+                  <div id="combined-confidence-breakdown" class="error-breakdown-list"></div>
+                </div>
+                <div class="error-analysis-group" id="combined-match-group" style="display:none">
+                  <div class="error-analysis-group-title">依當時偏重哪個方法分組</div>
+                  <div id="combined-match-breakdown" class="error-breakdown-list"></div>
+                </div>
+                <div class="error-analysis-group">
+                  <div class="error-analysis-group-title">當天新聞情緒是否極端</div>
+                  <div id="combined-news-breakdown" class="error-breakdown-list"></div>
+                </div>
+                <p class="error-analysis-note">
+                  這是統計「猜錯的預測有沒有共同特徵」,不是去猜測某一天為什麼猜錯(那種原因無法驗證)。
+                  每組樣本數不多時,命中率差異可能只是巧合,需要更多資料才有參考價值。
+                </p>
+              </div>
+            </details>
+
+            <p class="track-record-note">
+              跟上面兩種方法用同一套自動核對機制,是第三份完全獨立的紀錄,可以實際比較「綜合預測」
+              有沒有比單一方法更準,而不是預設組合一定比較好。
+            </p>
+          </div>
+        </div>
       </section>
     </div>
 

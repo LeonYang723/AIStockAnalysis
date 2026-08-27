@@ -161,11 +161,18 @@ def analyze_errors(log: list, sentiment_log: list = None) -> dict:
 
     confidence_breakdown = _breakdown_by(resolved, _confidence_bucket)
 
-    # match_level 只有統計法的紀錄才有這個欄位,ML模型的紀錄會全部是None,分組結果自然是空的
+    # match_level 統計法/ML模型/綜合預測三份log各自代表不同意義:
+    #   統計法: 技術狀態比對的嚴格程度(ML模型的紀錄會全部是None,分組結果自然是空的)
+    #   綜合預測: 當時是偏重統計法、偏重ML模型、還是兩者並重(見 combine_predictions.py)
     match_level_label_map = {
         "rsi_and_ma": "RSI+均線雙條件都符合",
         "rsi_only": "只符合RSI(樣本不足退回)",
         "all_history": "樣本嚴重不足(退回全歷史平均)",
+        "stat_dominant": "綜合預測偏重統計法",
+        "ml_dominant": "綜合預測偏重ML模型",
+        "balanced": "綜合預測兩方法並重",
+        "stat_only": "當時只有統計法有效",
+        "ml_only": "當時只有ML模型有效",
     }
     match_level_breakdown = _breakdown_by(
         resolved, lambda e: match_level_label_map.get(e.get("match_level"))

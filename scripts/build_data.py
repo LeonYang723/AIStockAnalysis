@@ -33,6 +33,7 @@ from us_news_translate import translate_titles
 from indicators import add_moving_averages, add_rsi_columns
 from analysis import generate_trend_narrative, compute_next_day_probability, compute_streak, get_latest_state
 from ml_model import train_and_predict as ml_train_and_predict
+from combine_predictions import combine_next_day
 from news_analysis import summarize_news
 from news_sentiment_log import (
     load_log as news_sentiment_load_log,
@@ -222,7 +223,41 @@ def build_one(stock_id: str, token: str = None, stock_name: str = None, market_d
                             "accuracy_pct": None, "recent": [], "error_analysis": None}
 
     ml_next_day["track_record"] = ml_track_record
-    analysis = {"narrative": narrative, "next_day": next_day, "next_day_ml": ml_next_day}
+
+    # ---------- 綜合預測(統計法 x ML模型,信心加權組合,第三版預測) ----------
+    # next_day / ml_next_day 此時都已經算好各自的 track_record,但 combine_next_day
+    # 只會讀取 up_pct/down_pct/match_level/sample_size/backtest_accuracy,不受影響。
+    try:
+        combined_next_day = combine_next_day(next_day, ml_next_day)
+    except Exception as e:
+        print(f"  綜合預測計算失敗({stock_id}): {e}")
+        combined_next_day = {"up_pct": None, "down_pct": None, "match_level": "error",
+                              "state_label": "綜合預測計算時發生錯誤"}
+
+    try:
+        combined_log_path = os.path.join(OUTPUT_DIR_ABS, f"{stock_id}_predictions_combined.json")
+        combined_log = load_log(combined_log_path)
+        combined_log = resolve_pending(combined_log, full_df[["date", "close"]])
+
+        latest_date_str = full_df["date"].max().strftime("%Y-%m-%d")
+        combined_log = add_new_prediction(combined_log, latest_date_str, combined_next_day)
+
+        save_log(combined_log_path, combined_log)
+        combined_track_record = compute_track_record(combined_log)
+        combined_track_record["error_analysis"] = analyze_errors(combined_log, sentiment_log=sentiment_log)
+    except Exception as e:
+        print(f"  綜合預測準確率追蹤失敗({stock_id}): {e}")
+        combined_track_record = {"total_predictions": 0, "resolved_count": 0, "correct_count": 0,
+                                  "accuracy_pct": None, "recent": [], "error_analysis": None}
+
+    combined_next_day["track_record"] = combined_track_record
+
+    analysis = {
+        "narrative": narrative,
+        "next_day": next_day,
+        "next_day_ml": ml_next_day,
+        "next_day_combined": combined_next_day,
+    }
 
     # ---------- 融資融券 ----------
     try:

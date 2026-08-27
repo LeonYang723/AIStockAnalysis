@@ -729,6 +729,21 @@ main {
 .anomaly-badge.buy { background: rgba(214, 56, 46, 0.18); color: #ff7a6e; }
 .anomaly-badge.sell { background: rgba(30, 158, 90, 0.18); color: #4fd189; }
 
+/* 綜合預測: 兩種方法方向/幅度是否一致的提示徽章 */
+.agree-badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  line-height: 1.5;
+}
+
+.agree-badge.agree { background: rgba(30, 158, 90, 0.18); color: #4fd189; }
+.agree-badge.moderate { background: rgba(242, 183, 5, 0.18); color: #f2b705; }
+.agree-badge.diverge { background: rgba(214, 56, 46, 0.18); color: #ff7a6e; }
+
 .overview-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));

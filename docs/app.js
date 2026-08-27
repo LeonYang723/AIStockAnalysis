@@ -239,6 +239,23 @@ const mlTrackCalNextEl = document.getElementById("ml-track-cal-next");
 const mlTrackCalMonthLabelEl = document.getElementById("ml-track-cal-month-label");
 const mlTrackCalGridEl = document.getElementById("ml-track-cal-grid");
 const mlTrackDateResultEl = document.getElementById("ml-track-date-result");
+const combinedStateLabelEl = document.getElementById("combined-state-label");
+const combinedBarUpEl = document.getElementById("combined-bar-up");
+const combinedBarDownEl = document.getElementById("combined-bar-down");
+const combinedUpPctEl = document.getElementById("combined-up-pct");
+const combinedDownPctEl = document.getElementById("combined-down-pct");
+const combinedWeightNoteEl = document.getElementById("combined-weight-note");
+const combinedAgreementBadgeEl = document.getElementById("combined-agreement-badge");
+const combinedTrackSummaryTotalEl = document.getElementById("combined-track-summary-total");
+const combinedTrackSummaryCorrectEl = document.getElementById("combined-track-summary-correct");
+const combinedTrackSummaryRateEl = document.getElementById("combined-track-summary-rate");
+const combinedTrackCalDetailsEl = document.getElementById("combined-track-calendar-details");
+const combinedTrackCalSummaryEl = document.getElementById("combined-track-calendar-summary");
+const combinedTrackCalPrevEl = document.getElementById("combined-track-cal-prev");
+const combinedTrackCalNextEl = document.getElementById("combined-track-cal-next");
+const combinedTrackCalMonthLabelEl = document.getElementById("combined-track-cal-month-label");
+const combinedTrackCalGridEl = document.getElementById("combined-track-cal-grid");
+const combinedTrackDateResultEl = document.getElementById("combined-track-date-result");
 const instAnomalyBadgesEl = document.getElementById("inst-anomaly-badges");
 const overviewStockTitleEl = document.getElementById("overview-stock-title");
 const overviewUpdatedEl = document.getElementById("overview-updated");
@@ -1070,6 +1087,68 @@ function renderMlPrediction(mlNextDay) {
   renderTrackRecordGeneric(mlNextDay.track_record, mlSummaryEls, mlDateEls, mlTrackDateResultEl, mlErrorAnalysisEls);
 }
 
+const AGREEMENT_BADGE_TEXT_PREFIX = {
+  agree: "✓ ",
+  moderate: "△ ",
+  diverge: "⚠ ",
+};
+
+function renderAgreementBadge(combinedNextDay) {
+  const level = combinedNextDay?.agreement_level;
+  const label = combinedNextDay?.agreement_label;
+  if (!level || !label) {
+    combinedAgreementBadgeEl.style.display = "none";
+    return;
+  }
+  combinedAgreementBadgeEl.className = `agree-badge ${level}`;
+  combinedAgreementBadgeEl.textContent = `${AGREEMENT_BADGE_TEXT_PREFIX[level] || ""}${label}`;
+  combinedAgreementBadgeEl.style.display = "";
+}
+
+function renderCombinedPrediction(combinedNextDay) {
+  const combinedSummaryEls = {
+    totalEl: combinedTrackSummaryTotalEl, correctEl: combinedTrackSummaryCorrectEl, rateEl: combinedTrackSummaryRateEl,
+  };
+  const combinedDateEls = {
+    detailsEl: combinedTrackCalDetailsEl, summaryEl: combinedTrackCalSummaryEl,
+    prevEl: combinedTrackCalPrevEl, nextEl: combinedTrackCalNextEl,
+    monthLabelEl: combinedTrackCalMonthLabelEl, gridEl: combinedTrackCalGridEl,
+  };
+  const combinedErrorAnalysisEls = {
+    confidenceEl: document.getElementById("combined-confidence-breakdown"),
+    matchEl: document.getElementById("combined-match-breakdown"),
+    matchGroupEl: document.getElementById("combined-match-group"),
+    newsEl: document.getElementById("combined-news-breakdown"),
+  };
+
+  if (!combinedNextDay || combinedNextDay.up_pct === null || combinedNextDay.up_pct === undefined) {
+    combinedStateLabelEl.textContent = combinedNextDay?.state_label || "資料不足";
+    combinedBarUpEl.style.width = "50%";
+    combinedBarDownEl.style.width = "50%";
+    combinedUpPctEl.textContent = "-";
+    combinedDownPctEl.textContent = "-";
+    combinedWeightNoteEl.textContent = "";
+    renderAgreementBadge(combinedNextDay);
+    renderTrackRecordGeneric(
+      combinedNextDay?.track_record, combinedSummaryEls, combinedDateEls, combinedTrackDateResultEl, combinedErrorAnalysisEls,
+    );
+    return;
+  }
+
+  combinedStateLabelEl.textContent = combinedNextDay.state_label || "";
+  combinedBarUpEl.style.width = `${combinedNextDay.up_pct}%`;
+  combinedBarDownEl.style.width = `${combinedNextDay.down_pct}%`;
+  combinedUpPctEl.textContent = combinedNextDay.up_pct;
+  combinedDownPctEl.textContent = combinedNextDay.down_pct;
+  combinedWeightNoteEl.textContent =
+    combinedNextDay.divergence != null ? `兩方法差距: ${combinedNextDay.divergence}個百分點` : "";
+  renderAgreementBadge(combinedNextDay);
+
+  renderTrackRecordGeneric(
+    combinedNextDay.track_record, combinedSummaryEls, combinedDateEls, combinedTrackDateResultEl, combinedErrorAnalysisEls,
+  );
+}
+
 async function loadStock(stockId) {
   const res = await fetch(`data/${stockId}.json?t=${Date.now()}`);
   if (!res.ok) {
@@ -1106,6 +1185,7 @@ async function loadStock(stockId) {
   renderAnalysis(data.analysis);
   renderTrackRecord(data.analysis?.next_day?.track_record);
   renderMlPrediction(data.analysis?.next_day_ml);
+  renderCombinedPrediction(data.analysis?.next_day_combined);
   renderNews(data.news);
   renderSentimentHistory(data.news);
   renderOverview(data);
