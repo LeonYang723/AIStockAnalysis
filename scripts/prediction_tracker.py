@@ -19,7 +19,6 @@
 import json
 import os
 import pandas as pd
-from config import TRACK_RECORD_MAX_ENTRIES
 
 
 def load_log(path: str) -> list:
@@ -34,9 +33,10 @@ def load_log(path: str) -> list:
 
 
 def save_log(path: str, log: list) -> None:
+    """完整保存所有預測紀錄，不截斷歷史資料。"""
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
-        json.dump(log[-TRACK_RECORD_MAX_ENTRIES:], f, ensure_ascii=False)
+        json.dump(log, f, ensure_ascii=False)
 
 
 def resolve_pending(log: list, price_df: pd.DataFrame) -> list:
@@ -207,8 +207,8 @@ def compute_track_record(log: list) -> dict:
     total_resolved = len(resolved)
     accuracy_pct = round(len(correct) / total_resolved * 100, 1) if total_resolved > 0 else None
 
-    # 這裡回傳「全部」已驗證記錄(不是只取近10筆),讓前端可以做日期選單查詢
-    recent = sorted(resolved, key=lambda e: e["predict_date"], reverse=True)
+    # 累積準確率依全部已驗證紀錄計算；前端日期查詢只提供最近60筆
+    recent = sorted(resolved, key=lambda e: e["predict_date"], reverse=True)[:60]
 
     return {
         "total_predictions": len(log),
